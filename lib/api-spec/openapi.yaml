@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: sentinel
+    description: Swept Sentinel OSINT module operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,70 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /sentinel/execute:
+    post:
+      operationId: executeModule
+      tags: [sentinel]
+      summary: Execute an OSINT module
+      description: Spawns swept_sentinel.py with the given module number and target, returns the run ID for SSE streaming
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleInput"
+      responses:
+        "200":
+          description: Execution started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecuteResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /sentinel/stream/{runId}:
+    get:
+      operationId: streamOutput
+      tags: [sentinel]
+      summary: Stream module output via SSE
+      description: Server-sent events stream for a running module's stdout
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SSE stream of module output lines
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "404":
+          description: Run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /sentinel/modules:
+    get:
+      operationId: listModules
+      tags: [sentinel]
+      summary: List all 230 OSINT modules
+      responses:
+        "200":
+          description: Module list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Module"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +99,49 @@ components:
           type: string
       required:
         - status
-
+    Module:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+      required:
+        - id
+        - name
+        - category
+    ModuleInput:
+      type: object
+      properties:
+        moduleId:
+          type: integer
+        target:
+          type: string
+      required:
+        - moduleId
+        - target
+    ExecuteResult:
+      type: object
+      properties:
+        runId:
+          type: string
+        moduleId:
+          type: integer
+        target:
+          type: string
+        streamUrl:
+          type: string
+      required:
+        - runId
+        - moduleId
+        - target
+        - streamUrl
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

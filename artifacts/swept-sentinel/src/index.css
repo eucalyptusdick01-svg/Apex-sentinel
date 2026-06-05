@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root, .dark {
+  --background: 212 89% 3%; /* #010810 */
+  --foreground: 212 100% 67%; /* #58a6ff */
+  --border: 210 57% 17%;
+  
+  --card: 210 62% 10%; /* #0a1a2a */
+  --card-foreground: 212 100% 67%;
+  --card-border: 210 57% 17%;
+  
+  --popover: 210 62% 10%;
+  --popover-foreground: 212 100% 67%;
+  --popover-border: 210 57% 17%;
+  
+  --primary: 192 100% 50%; /* #00ccff */
+  --primary-foreground: 212 89% 3%; /* #010810 */
+  
+  --secondary: 210 57% 17%;
+  --secondary-foreground: 212 100% 67%;
+  
+  --muted: 210 57% 17%;
+  --muted-foreground: 212 100% 50%;
+  
+  --accent: 192 100% 50%;
+  --accent-foreground: 212 89% 3%;
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  
+  --input: 210 57% 17%;
+  --ring: 192 100% 50%;
+
+  --app-font-sans: 'Space Mono', Consolas, Menlo, Monaco, monospace;
+  --app-font-mono: 'Space Mono', Consolas, Menlo, Monaco, monospace;
+  --app-font-serif: 'Space Mono', Consolas, Menlo, Monaco, monospace;
+  
+  --radius: 0rem; /* Terminal tools usually lack rounded corners */
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-mono antialiased bg-background text-foreground;
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: hsl(var(--background)); 
+  border-left: 1px solid hsl(var(--border));
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.3); 
+  border: 1px solid hsl(var(--primary));
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.6); 
+}
