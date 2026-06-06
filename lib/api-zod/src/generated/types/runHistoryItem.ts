@@ -6,10 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ExecuteResult {
-  runId: string;
+export interface RunHistoryItem {
+  id: number;
   moduleId: number;
+  moduleName: string;
   target: string;
-  streamUrl: string;
-  historyId: number;
+  output: string;
+  /** @nullable */
+  batchId: string | null;
+  createdAt: string;
 }

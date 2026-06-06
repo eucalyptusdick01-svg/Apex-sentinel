@@ -9,37 +9,10 @@ import * as zod from 'zod';
 
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
   "status": zod.string()
-})
-
-
-/**
- * Spawns swept_sentinel.py with the given module number and target, returns the run ID for SSE streaming
- * @summary Execute an OSINT module
- */
-export const ExecuteModuleBody = zod.object({
-  "moduleId": zod.number(),
-  "target": zod.string()
-})
-
-export const ExecuteModuleResponse = zod.object({
-  "runId": zod.string(),
-  "moduleId": zod.number(),
-  "target": zod.string(),
-  "streamUrl": zod.string()
-})
-
-
-/**
- * Server-sent events stream for a running module's stdout
- * @summary Stream module output via SSE
- */
-export const StreamOutputParams = zod.object({
-  "runId": zod.coerce.string()
 })
 
 
@@ -52,5 +25,92 @@ export const ListModulesResponseItem = zod.object({
   "category": zod.string()
 })
 export const ListModulesResponse = zod.array(ListModulesResponseItem)
+
+
+/**
+ * @summary Execute a single OSINT module
+ */
+export const ExecuteModuleBody = zod.object({
+  "moduleId": zod.number(),
+  "target": zod.string()
+})
+
+export const ExecuteModuleResponse = zod.object({
+  "runId": zod.string(),
+  "moduleId": zod.number(),
+  "target": zod.string(),
+  "streamUrl": zod.string(),
+  "historyId": zod.number()
+})
+
+
+/**
+ * @summary Execute multiple modules sequentially against one target
+ */
+export const ExecuteBatchBody = zod.object({
+  "moduleIds": zod.array(zod.number()),
+  "target": zod.string()
+})
+
+export const ExecuteBatchResponse = zod.object({
+  "batchId": zod.string(),
+  "runId": zod.string(),
+  "moduleIds": zod.array(zod.number()),
+  "target": zod.string(),
+  "streamUrl": zod.string()
+})
+
+
+/**
+ * @summary Stream module output via SSE
+ */
+export const StreamOutputParams = zod.object({
+  "runId": zod.coerce.string()
+})
+
+
+/**
+ * @summary List all past runs
+ */
+export const ListHistoryResponseItem = zod.object({
+  "id": zod.number(),
+  "moduleId": zod.number(),
+  "moduleName": zod.string(),
+  "target": zod.string(),
+  "output": zod.string(),
+  "batchId": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+export const ListHistoryResponse = zod.array(ListHistoryResponseItem)
+
+
+/**
+ * @summary Get a single past run with full output
+ */
+export const GetHistoryRunParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetHistoryRunResponse = zod.object({
+  "id": zod.number(),
+  "moduleId": zod.number(),
+  "moduleName": zod.string(),
+  "target": zod.string(),
+  "output": zod.string(),
+  "batchId": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a single run from history
+ */
+export const DeleteHistoryRunParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteHistoryRunResponse = zod.object({
+  "ok": zod.boolean()
+})
 
 

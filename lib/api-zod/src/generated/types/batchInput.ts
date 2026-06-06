@@ -6,10 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ExecuteResult {
-  runId: string;
-  moduleId: number;
+export interface BatchInput {
+  moduleIds: number[];
   target: string;
-  streamUrl: string;
-  historyId: number;
 }
