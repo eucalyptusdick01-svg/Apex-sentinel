@@ -1,0 +1,31 @@
+kind = "video"
+previewPath = "/swept-sentinel-video/"
+title = "Swept Sentinel - Video"
+version = "1.0.0"
+id = "artifacts/swept-sentinel-video"
+router = "path"
+
+[[integratedSkills]]
+name = "video-js"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/swept-sentinel-video/" ]
+localPort = 25496
+
+[services.development]
+run = "pnpm --filter @workspace/swept-sentinel-video run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/swept-sentinel-video", "run", "build" ]
+publicDir = "artifacts/swept-sentinel-video/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25496"
+BASE_PATH = "/swept-sentinel-video/"
