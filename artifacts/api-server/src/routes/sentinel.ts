@@ -3,6 +3,7 @@ import { spawn } from "child_process";
 import { randomUUID } from "crypto";
 import path from "path";
 import fs from "fs";
+import dns from "dns/promises";
 import {
   ExecuteModuleBody,
   StreamOutputParams,
@@ -89,57 +90,78 @@ function finishRun(
   setTimeout(() => activeRuns.delete(runId), 60_000);
 }
 
-async function fetchEmailRepLines(target: string): Promise<string[]> {
-  const headers: Record<string, string> = { "User-Agent": "swept-sentinel-osint" };
-  if (process.env.EMAILREP_API_KEY) {
-    headers["Key"] = process.env.EMAILREP_API_KEY;
-  }
-  const res = await fetch(`https://emailrep.io/${encodeURIComponent(target)}`, { headers });
-  if (res.status === 429) {
-    throw new Error(
-      "emailrep.io rate limit reached (unauthenticated tier). Add an EMAILREP_API_KEY secret for reliable access.",
-    );
-  }
-  if (!res.ok) {
-    throw new Error(`emailrep.io responded with status ${res.status}`);
-  }
-  const data = (await res.json()) as {
-    reputation?: string;
-    suspicious?: boolean;
-    references?: number;
-    details?: {
-      blacklisted?: boolean;
-      malicious_activity?: boolean;
-      malicious_activity_recent?: boolean;
-      credentials_leaked?: boolean;
-      credentials_leaked_recent?: boolean;
-      data_breach?: boolean;
-      first_seen?: string;
-      last_seen?: string;
-      domain_exists?: boolean;
-      domain_reputation?: string;
-      new_domain?: boolean;
-      days_since_domain_creation?: number;
-      spam?: boolean;
-    };
-  };
+async function fetchEmailLookupLines(target: string): Promise<string[]> {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const validFormat = emailRegex.test(target);
+  const domain = target.split("@")[1];
 
-  return [
+  const lines: string[] = [
     `[MODULE 7] EMAIL REP — executing on: ${target}`,
-    `[QUERY] emailrep.io reputation lookup`,
-    `[RESULT] reputation: ${data.reputation ?? "unknown"}`,
-    `[RESULT] suspicious: ${String(data.suspicious ?? "unknown")}`,
-    `[RESULT] references: ${String(data.references ?? 0)}`,
-    `[DETAILS] blacklisted: ${String(data.details?.blacklisted ?? "unknown")}`,
-    `[DETAILS] malicious_activity: ${String(data.details?.malicious_activity ?? "unknown")}`,
-    `[DETAILS] credentials_leaked: ${String(data.details?.credentials_leaked ?? "unknown")}`,
-    `[DETAILS] data_breach: ${String(data.details?.data_breach ?? "unknown")}`,
-    `[DETAILS] domain_exists: ${String(data.details?.domain_exists ?? "unknown")}`,
-    `[DETAILS] domain_reputation: ${data.details?.domain_reputation ?? "unknown"}`,
-    `[DETAILS] first_seen: ${data.details?.first_seen ?? "n/a"}`,
-    `[DETAILS] last_seen: ${data.details?.last_seen ?? "n/a"}`,
-    `[DONE] Lookup complete.`,
+    `[QUERY] format validation + DNS MX lookup + disposable-domain check`,
+    `[RESULT] valid format: ${validFormat}`,
   ];
+
+  if (!validFormat || !domain) {
+    lines.push(`[RESULT] domain: n/a`);
+    lines.push(`[ASSESSMENT] risk level: HIGH — malformed email address`);
+    lines.push(`[DONE] Lookup complete.`);
+    return lines;
+  }
+
+  lines.push(`[RESULT] domain: ${domain}`);
+
+  let mxRecords: Awaited<ReturnType<typeof dns.resolveMx>> = [];
+  try {
+    mxRecords = await dns.resolveMx(domain);
+  } catch {
+    mxRecords = [];
+  }
+  const canReceiveMail = mxRecords.length > 0;
+  lines.push(`[RESULT] mx records found: ${mxRecords.length}`);
+  lines.push(`[RESULT] can receive mail: ${canReceiveMail}`);
+  if (canReceiveMail) {
+    const top = [...mxRecords].sort((a, b) => a.priority - b.priority)[0];
+    lines.push(`[RESULT] primary mail server: ${top.exchange}`);
+  }
+
+  let domainResolves = canReceiveMail;
+  if (!domainResolves) {
+    try {
+      await dns.resolve4(domain);
+      domainResolves = true;
+    } catch {
+      try {
+        await dns.resolve6(domain);
+        domainResolves = true;
+      } catch {
+        domainResolves = false;
+      }
+    }
+  }
+  lines.push(`[RESULT] domain resolves: ${domainResolves}`);
+
+  let disposable: boolean | null = null;
+  try {
+    const res = await fetch(`https://open.kickbox.com/v1/disposable/${encodeURIComponent(target)}`);
+    if (res.ok) {
+      const data = (await res.json()) as { disposable?: boolean };
+      disposable = data.disposable ?? null;
+    }
+  } catch {
+    disposable = null;
+  }
+  lines.push(`[FLAGS] disposable/temp email: ${disposable === null ? "unknown" : String(disposable)}`);
+
+  const risk = !domainResolves
+    ? "HIGH — domain does not resolve"
+    : disposable
+      ? "HIGH — disposable email provider"
+      : !canReceiveMail
+        ? "MEDIUM — no MX records found"
+        : "LOW";
+  lines.push(`[ASSESSMENT] risk level: ${risk}`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
 }
 
 async function fetchIpLookupLines(moduleId: number, target: string): Promise<string[]> {
@@ -199,7 +221,7 @@ async function runRealLookup(
 ): Promise<void> {
   try {
     const lines = moduleId === 7
-      ? await fetchEmailRepLines(target)
+      ? await fetchEmailLookupLines(target)
       : await fetchIpLookupLines(moduleId, target);
     for (const line of lines) {
       emitLine(runState, line);
