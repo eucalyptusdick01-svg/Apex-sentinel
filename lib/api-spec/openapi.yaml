@@ -18,6 +18,7 @@ paths:
       operationId: healthCheck
       tags: [health]
       summary: Health check
+      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -25,25 +26,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
-  /sentinel/modules:
-    get:
-      operationId: listModules
-      tags: [sentinel]
-      summary: List all 230 OSINT modules
-      responses:
-        "200":
-          description: Module list
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Module"
   /sentinel/execute:
     post:
       operationId: executeModule
       tags: [sentinel]
-      summary: Execute a single OSINT module
+      summary: Execute an OSINT module
+      description: Spawns swept_sentinel.py with the given module number and target, returns the run ID for SSE streaming
       requestBody:
         required: true
         content:
@@ -63,35 +51,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /sentinel/batch:
-    post:
-      operationId: executeBatch
-      tags: [sentinel]
-      summary: Execute multiple modules sequentially against one target
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/BatchInput"
-      responses:
-        "200":
-          description: Batch execution started
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BatchResult"
-        "400":
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
   /sentinel/stream/{runId}:
     get:
       operationId: streamOutput
       tags: [sentinel]
       summary: Stream module output via SSE
+      description: Server-sent events stream for a running module's stdout
       parameters:
         - name: runId
           in: path
@@ -100,7 +65,7 @@ paths:
             type: string
       responses:
         "200":
-          description: SSE stream
+          description: SSE stream of module output lines
           content:
             text/event-stream:
               schema:
@@ -111,67 +76,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /sentinel/history:
+  /sentinel/modules:
     get:
-      operationId: listHistory
+      operationId: listModules
       tags: [sentinel]
-      summary: List all past runs
+      summary: List all 230 OSINT modules
       responses:
         "200":
-          description: Run history
+          description: Module list
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/RunHistoryItem"
-  /sentinel/history/{id}:
-    get:
-      operationId: getHistoryRun
-      tags: [sentinel]
-      summary: Get a single past run with full output
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Run detail
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RunHistoryItem"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-    delete:
-      operationId: deleteHistoryRun
-      tags: [sentinel]
-      summary: Delete a single run from history
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Deleted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                  $ref: "#/components/schemas/Module"
 components:
   schemas:
     HealthStatus:
@@ -179,7 +97,8 @@ components:
       properties:
         status:
           type: string
-      required: [status]
+      required:
+        - status
     Module:
       type: object
       properties:
@@ -189,7 +108,10 @@ components:
           type: string
         category:
           type: string
-      required: [id, name, category]
+      required:
+        - id
+        - name
+        - category
     ModuleInput:
       type: object
       properties:
@@ -197,7 +119,9 @@ components:
           type: integer
         target:
           type: string
-      required: [moduleId, target]
+      required:
+        - moduleId
+        - target
     ExecuteResult:
       type: object
       properties:
@@ -209,62 +133,15 @@ components:
           type: string
         streamUrl:
           type: string
-        historyId:
-          type: integer
-      required: [runId, moduleId, target, streamUrl, historyId]
-    BatchInput:
-      type: object
-      properties:
-        moduleIds:
-          type: array
-          items:
-            type: integer
-        target:
-          type: string
-      required: [moduleIds, target]
-    BatchResult:
-      type: object
-      properties:
-        batchId:
-          type: string
-        runId:
-          type: string
-        moduleIds:
-          type: array
-          items:
-            type: integer
-        target:
-          type: string
-        streamUrl:
-          type: string
-      required: [batchId, runId, moduleIds, target, streamUrl]
-    RunHistoryItem:
-      type: object
-      properties:
-        id:
-          type: integer
-        moduleId:
-          type: integer
-        moduleName:
-          type: string
-        target:
-          type: string
-        output:
-          type: string
-        batchId:
-          type: ["string", "null"]
-        createdAt:
-          type: string
-      required: [id, moduleId, moduleName, target, output, batchId, createdAt]
+      required:
+        - runId
+        - moduleId
+        - target
+        - streamUrl
     ErrorResponse:
       type: object
       properties:
         error:
           type: string
-      required: [error]
-    SuccessResponse:
-      type: object
-      properties:
-        ok:
-          type: boolean
-      required: [ok]
+      required:
+        - error

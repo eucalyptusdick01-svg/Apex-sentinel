@@ -11,5 +11,4 @@ export interface ExecuteResult {
   moduleId: number;
   target: string;
   streamUrl: string;
-  historyId: number;
 }

@@ -1,8 +1,0 @@
-uploads = []
-generated = []
-
-[[outputs]]
-id = "Wo2qELnTKMqOym7tgrLLM"
-uri = "file://artifacts/swept-sentinel-video/public/audio/bg_music.mp3"
-type = "audio"
-title = "swept sentinel bg music"

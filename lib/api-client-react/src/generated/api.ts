@@ -20,15 +20,11 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  BatchInput,
-  BatchResult,
   ErrorResponse,
   ExecuteResult,
   HealthStatus,
   Module,
-  ModuleInput,
-  RunHistoryItem,
-  SuccessResponse
+  ModuleInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -52,6 +48,7 @@ export const getHealthCheckUrl = () => {
 }
 
 /**
+ * Returns server health status
  * @summary Health check
  */
 export const healthCheck = async ( options?: RequestInit): Promise<HealthStatus> => {
@@ -108,6 +105,156 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getExecuteModuleUrl = () => {
+
+
+
+
+  return `/api/sentinel/execute`
+}
+
+/**
+ * Spawns swept_sentinel.py with the given module number and target, returns the run ID for SSE streaming
+ * @summary Execute an OSINT module
+ */
+export const executeModule = async (moduleInput: ModuleInput, options?: RequestInit): Promise<ExecuteResult> => {
+
+  return customFetch<ExecuteResult>(getExecuteModuleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      moduleInput,)
+  }
+);}
+
+
+
+
+export const getExecuteModuleMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeModule>>, TError,{data: BodyType<ModuleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof executeModule>>, TError,{data: BodyType<ModuleInput>}, TContext> => {
+
+const mutationKey = ['executeModule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof executeModule>>, {data: BodyType<ModuleInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  executeModule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExecuteModuleMutationResult = NonNullable<Awaited<ReturnType<typeof executeModule>>>
+    export type ExecuteModuleMutationBody = BodyType<ModuleInput>
+    export type ExecuteModuleMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Execute an OSINT module
+ */
+export const useExecuteModule = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeModule>>, TError,{data: BodyType<ModuleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof executeModule>>,
+        TError,
+        {data: BodyType<ModuleInput>},
+        TContext
+      > => {
+      return useMutation(getExecuteModuleMutationOptions(options));
+    }
+
+export const getStreamOutputUrl = (runId: string,) => {
+
+
+
+
+  return `/api/sentinel/stream/${runId}`
+}
+
+/**
+ * Server-sent events stream for a running module's stdout
+ * @summary Stream module output via SSE
+ */
+export const streamOutput = async (runId: string, options?: RequestInit): Promise<string> => {
+
+  return customFetch<string>(getStreamOutputUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStreamOutputQueryKey = (runId: string,) => {
+    return [
+    `/api/sentinel/stream/${runId}`
+    ] as const;
+    }
+
+
+export const getStreamOutputQueryOptions = <TData = Awaited<ReturnType<typeof streamOutput>>, TError = ErrorType<ErrorResponse>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof streamOutput>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStreamOutputQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof streamOutput>>> = ({ signal }) => streamOutput(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(runId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof streamOutput>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type StreamOutputQueryResult = NonNullable<Awaited<ReturnType<typeof streamOutput>>>
+export type StreamOutputQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Stream module output via SSE
+ */
+
+export function useStreamOutput<TData = Awaited<ReturnType<typeof streamOutput>>, TError = ErrorType<ErrorResponse>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof streamOutput>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getStreamOutputQueryOptions(runId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -196,447 +343,4 @@ export function useListModules<TData = Awaited<ReturnType<typeof listModules>>, 
 
 
 
-
-export const getExecuteModuleUrl = () => {
-
-
-
-
-  return `/api/sentinel/execute`
-}
-
-/**
- * @summary Execute a single OSINT module
- */
-export const executeModule = async (moduleInput: ModuleInput, options?: RequestInit): Promise<ExecuteResult> => {
-
-  return customFetch<ExecuteResult>(getExecuteModuleUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      moduleInput,)
-  }
-);}
-
-
-
-
-export const getExecuteModuleMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeModule>>, TError,{data: BodyType<ModuleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof executeModule>>, TError,{data: BodyType<ModuleInput>}, TContext> => {
-
-const mutationKey = ['executeModule'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof executeModule>>, {data: BodyType<ModuleInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  executeModule(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type ExecuteModuleMutationResult = NonNullable<Awaited<ReturnType<typeof executeModule>>>
-    export type ExecuteModuleMutationBody = BodyType<ModuleInput>
-    export type ExecuteModuleMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Execute a single OSINT module
- */
-export const useExecuteModule = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeModule>>, TError,{data: BodyType<ModuleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof executeModule>>,
-        TError,
-        {data: BodyType<ModuleInput>},
-        TContext
-      > => {
-      return useMutation(getExecuteModuleMutationOptions(options));
-    }
-
-export const getExecuteBatchUrl = () => {
-
-
-
-
-  return `/api/sentinel/batch`
-}
-
-/**
- * @summary Execute multiple modules sequentially against one target
- */
-export const executeBatch = async (batchInput: BatchInput, options?: RequestInit): Promise<BatchResult> => {
-
-  return customFetch<BatchResult>(getExecuteBatchUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      batchInput,)
-  }
-);}
-
-
-
-
-export const getExecuteBatchMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeBatch>>, TError,{data: BodyType<BatchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof executeBatch>>, TError,{data: BodyType<BatchInput>}, TContext> => {
-
-const mutationKey = ['executeBatch'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof executeBatch>>, {data: BodyType<BatchInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  executeBatch(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type ExecuteBatchMutationResult = NonNullable<Awaited<ReturnType<typeof executeBatch>>>
-    export type ExecuteBatchMutationBody = BodyType<BatchInput>
-    export type ExecuteBatchMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Execute multiple modules sequentially against one target
- */
-export const useExecuteBatch = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeBatch>>, TError,{data: BodyType<BatchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof executeBatch>>,
-        TError,
-        {data: BodyType<BatchInput>},
-        TContext
-      > => {
-      return useMutation(getExecuteBatchMutationOptions(options));
-    }
-
-export const getStreamOutputUrl = (runId: string,) => {
-
-
-
-
-  return `/api/sentinel/stream/${runId}`
-}
-
-/**
- * @summary Stream module output via SSE
- */
-export const streamOutput = async (runId: string, options?: RequestInit): Promise<string> => {
-
-  return customFetch<string>(getStreamOutputUrl(runId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getStreamOutputQueryKey = (runId: string,) => {
-    return [
-    `/api/sentinel/stream/${runId}`
-    ] as const;
-    }
-
-
-export const getStreamOutputQueryOptions = <TData = Awaited<ReturnType<typeof streamOutput>>, TError = ErrorType<ErrorResponse>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof streamOutput>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getStreamOutputQueryKey(runId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof streamOutput>>> = ({ signal }) => streamOutput(runId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: !!(runId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof streamOutput>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type StreamOutputQueryResult = NonNullable<Awaited<ReturnType<typeof streamOutput>>>
-export type StreamOutputQueryError = ErrorType<ErrorResponse>
-
-
-/**
- * @summary Stream module output via SSE
- */
-
-export function useStreamOutput<TData = Awaited<ReturnType<typeof streamOutput>>, TError = ErrorType<ErrorResponse>>(
- runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof streamOutput>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getStreamOutputQueryOptions(runId,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getListHistoryUrl = () => {
-
-
-
-
-  return `/api/sentinel/history`
-}
-
-/**
- * @summary List all past runs
- */
-export const listHistory = async ( options?: RequestInit): Promise<RunHistoryItem[]> => {
-
-  return customFetch<RunHistoryItem[]>(getListHistoryUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListHistoryQueryKey = () => {
-    return [
-    `/api/sentinel/history`
-    ] as const;
-    }
-
-
-export const getListHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listHistory>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListHistoryQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listHistory>>> = ({ signal }) => listHistory({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listHistory>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listHistory>>>
-export type ListHistoryQueryError = ErrorType<unknown>
-
-
-/**
- * @summary List all past runs
- */
-
-export function useListHistory<TData = Awaited<ReturnType<typeof listHistory>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListHistoryQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getGetHistoryRunUrl = (id: number,) => {
-
-
-
-
-  return `/api/sentinel/history/${id}`
-}
-
-/**
- * @summary Get a single past run with full output
- */
-export const getHistoryRun = async (id: number, options?: RequestInit): Promise<RunHistoryItem> => {
-
-  return customFetch<RunHistoryItem>(getGetHistoryRunUrl(id),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetHistoryRunQueryKey = (id: number,) => {
-    return [
-    `/api/sentinel/history/${id}`
-    ] as const;
-    }
-
-
-export const getGetHistoryRunQueryOptions = <TData = Awaited<ReturnType<typeof getHistoryRun>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHistoryRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetHistoryRunQueryKey(id);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHistoryRun>>> = ({ signal }) => getHistoryRun(id, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHistoryRun>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetHistoryRunQueryResult = NonNullable<Awaited<ReturnType<typeof getHistoryRun>>>
-export type GetHistoryRunQueryError = ErrorType<ErrorResponse>
-
-
-/**
- * @summary Get a single past run with full output
- */
-
-export function useGetHistoryRun<TData = Awaited<ReturnType<typeof getHistoryRun>>, TError = ErrorType<ErrorResponse>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHistoryRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetHistoryRunQueryOptions(id,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getDeleteHistoryRunUrl = (id: number,) => {
-
-
-
-
-  return `/api/sentinel/history/${id}`
-}
-
-/**
- * @summary Delete a single run from history
- */
-export const deleteHistoryRun = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
-
-  return customFetch<SuccessResponse>(getDeleteHistoryRunUrl(id),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-export const getDeleteHistoryRunMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteHistoryRun>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteHistoryRun>>, TError,{id: number}, TContext> => {
-
-const mutationKey = ['deleteHistoryRun'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteHistoryRun>>, {id: number}> = (props) => {
-          const {id} = props ?? {};
-
-          return  deleteHistoryRun(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeleteHistoryRunMutationResult = NonNullable<Awaited<ReturnType<typeof deleteHistoryRun>>>
-
-    export type DeleteHistoryRunMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Delete a single run from history
- */
-export const useDeleteHistoryRun = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteHistoryRun>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof deleteHistoryRun>>,
-        TError,
-        {id: number},
-        TContext
-      > => {
-      return useMutation(getDeleteHistoryRunMutationOptions(options));
-    }
 

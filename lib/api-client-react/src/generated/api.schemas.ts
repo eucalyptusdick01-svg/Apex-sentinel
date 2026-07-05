@@ -25,38 +25,9 @@ export interface ExecuteResult {
   moduleId: number;
   target: string;
   streamUrl: string;
-  historyId: number;
-}
-
-export interface BatchInput {
-  moduleIds: number[];
-  target: string;
-}
-
-export interface BatchResult {
-  batchId: string;
-  runId: string;
-  moduleIds: number[];
-  target: string;
-  streamUrl: string;
-}
-
-export interface RunHistoryItem {
-  id: number;
-  moduleId: number;
-  moduleName: string;
-  target: string;
-  output: string;
-  /** @nullable */
-  batchId: string | null;
-  createdAt: string;
 }
 
 export interface ErrorResponse {
   error: string;
-}
-
-export interface SuccessResponse {
-  ok: boolean;
 }
 
