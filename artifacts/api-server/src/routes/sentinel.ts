@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import path from "path";
 import fs from "fs";
 import dns from "dns/promises";
+import net from "net";
 import {
   ExecuteModuleBody,
   StreamOutputParams,
@@ -65,7 +66,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 7, 10]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 10]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -213,6 +214,145 @@ async function fetchIpLookupLines(moduleId: number, target: string): Promise<str
   ];
 }
 
+async function fetchDnsResolveLines(target: string): Promise<string[]> {
+  const lines: string[] = [
+    `[MODULE 2] DNS RESOLVE — executing on: ${target}`,
+    `[QUERY] DNS record lookup (A/AAAA/MX/TXT/NS/CNAME)`,
+  ];
+
+  try {
+    const a = await dns.resolve4(target);
+    lines.push(`[A] ${a.join(", ")}`);
+  } catch {
+    lines.push(`[A] none found`);
+  }
+  try {
+    const aaaa = await dns.resolve6(target);
+    lines.push(`[AAAA] ${aaaa.join(", ")}`);
+  } catch {
+    lines.push(`[AAAA] none found`);
+  }
+  try {
+    const mx = await dns.resolveMx(target);
+    lines.push(
+      `[MX] ${mx.length ? mx.map((m) => `${m.exchange} (priority ${m.priority})`).join(", ") : "none found"}`,
+    );
+  } catch {
+    lines.push(`[MX] none found`);
+  }
+  try {
+    const txt = await dns.resolveTxt(target);
+    lines.push(`[TXT] ${txt.length ? txt.map((t) => t.join("")).join(" | ") : "none found"}`);
+  } catch {
+    lines.push(`[TXT] none found`);
+  }
+  try {
+    const ns = await dns.resolveNs(target);
+    lines.push(`[NS] ${ns.join(", ")}`);
+  } catch {
+    lines.push(`[NS] none found`);
+  }
+  try {
+    const cname = await dns.resolveCname(target);
+    lines.push(`[CNAME] ${cname.join(", ")}`);
+  } catch {
+    lines.push(`[CNAME] none found`);
+  }
+  lines.push(`[DONE] DNS resolution complete.`);
+  return lines;
+}
+
+const COMMON_PORTS: Array<[number, string]> = [
+  [21, "FTP"],
+  [22, "SSH"],
+  [23, "Telnet"],
+  [25, "SMTP"],
+  [53, "DNS"],
+  [80, "HTTP"],
+  [110, "POP3"],
+  [143, "IMAP"],
+  [443, "HTTPS"],
+  [445, "SMB"],
+  [3306, "MySQL"],
+  [3389, "RDP"],
+  [5432, "PostgreSQL"],
+  [6379, "Redis"],
+  [8080, "HTTP-ALT"],
+  [8443, "HTTPS-ALT"],
+];
+
+function checkPort(host: string, port: number, timeoutMs = 1000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let settled = false;
+    const finish = (open: boolean) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(open);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => finish(true));
+    socket.once("timeout", () => finish(false));
+    socket.once("error", () => finish(false));
+    socket.connect(port, host);
+  });
+}
+
+async function fetchPortScanLines(target: string): Promise<string[]> {
+  const lines: string[] = [
+    `[MODULE 3] PORT SCAN — executing on: ${target}`,
+    `[QUERY] TCP connect scan across ${COMMON_PORTS.length} common ports`,
+  ];
+
+  const results = await Promise.all(
+    COMMON_PORTS.map(async ([port, name]) => ({ port, name, open: await checkPort(target, port) })),
+  );
+
+  for (const r of results) {
+    lines.push(`[PORT ${r.port}/${r.name}] ${r.open ? "OPEN" : "closed"}`);
+  }
+  const openCount = results.filter((r) => r.open).length;
+  lines.push(`[RESULT] ${openCount} open port(s) found out of ${COMMON_PORTS.length} scanned`);
+  lines.push(`[DONE] Port scan complete.`);
+  return lines;
+}
+
+async function fetchWhoisLines(target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").split("/")[0];
+  const res = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
+    headers: { Accept: "application/rdap+json" },
+  });
+  if (!res.ok) {
+    throw new Error(
+      `RDAP lookup failed with status ${res.status} — domain may not exist or its TLD is unsupported`,
+    );
+  }
+  const data = (await res.json()) as {
+    ldhName?: string;
+    status?: string[];
+    events?: Array<{ eventAction: string; eventDate: string }>;
+    nameservers?: Array<{ ldhName: string }>;
+  };
+
+  const registration = data.events?.find((e) => e.eventAction === "registration");
+  const expiration = data.events?.find((e) => e.eventAction === "expiration");
+  const lastChanged = data.events?.find((e) => e.eventAction === "last changed");
+  const nameservers = (data.nameservers ?? []).map((ns) => ns.ldhName).join(", ");
+
+  return [
+    `[MODULE 5] WHOIS QUERY — executing on: ${domain}`,
+    `[QUERY] RDAP domain registration lookup`,
+    `[RESULT] domain: ${data.ldhName ?? domain}`,
+    `[RESULT] status: ${(data.status ?? []).join(", ") || "unknown"}`,
+    `[RESULT] registered: ${registration?.eventDate ?? "unknown"}`,
+    `[RESULT] expires: ${expiration?.eventDate ?? "unknown"}`,
+    `[RESULT] last changed: ${lastChanged?.eventDate ?? "unknown"}`,
+    `[RESULT] nameservers: ${nameservers || "none found"}`,
+    `[DONE] WHOIS lookup complete.`,
+  ];
+}
+
 async function runRealLookup(
   moduleId: number,
   target: string,
@@ -220,9 +360,18 @@ async function runRealLookup(
   runId: string,
 ): Promise<void> {
   try {
-    const lines = moduleId === 7
-      ? await fetchEmailLookupLines(target)
-      : await fetchIpLookupLines(moduleId, target);
+    let lines: string[];
+    if (moduleId === 7) {
+      lines = await fetchEmailLookupLines(target);
+    } else if (moduleId === 2) {
+      lines = await fetchDnsResolveLines(target);
+    } else if (moduleId === 3) {
+      lines = await fetchPortScanLines(target);
+    } else if (moduleId === 5) {
+      lines = await fetchWhoisLines(target);
+    } else {
+      lines = await fetchIpLookupLines(moduleId, target);
+    }
     for (const line of lines) {
       emitLine(runState, line);
       await sleep(120);
