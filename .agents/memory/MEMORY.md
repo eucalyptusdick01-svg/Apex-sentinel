@@ -1,0 +1,1 @@
+- [Free OSINT/network APIs reachability](free-osint-apis.md) — which no-key public APIs work vs. are DNS-blocked in this Replit sandbox network.

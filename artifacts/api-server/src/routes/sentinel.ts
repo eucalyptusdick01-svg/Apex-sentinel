@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import dns from "dns/promises";
 import net from "net";
+import tls from "tls";
 import {
   ExecuteModuleBody,
   StreamOutputParams,
@@ -22,6 +23,8 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   8: "PROXY CHECK",
   9: "DB SEARCH",
   10: "GEOLOCATE",
+  11: "GITHUB LOOKUP",
+  12: "USERNAME CHECK",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -29,6 +32,9 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   60: "TRUECALLER",
   71: "VIN CHECK",
   91: "SATELLITE",
+  92: "SSL CERT INFO",
+  93: "WAYBACK CHECK",
+  94: "HTTP FINGERPRINT",
   131: "SQL MAP",
   201: "BGP ROUTE",
   207: "CDN ORIGIN",
@@ -66,7 +72,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 10]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 10, 11, 12, 92, 93, 94, 201, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -353,6 +359,274 @@ async function fetchWhoisLines(target: string): Promise<string[]> {
   ];
 }
 
+async function fetchGithubLookupLines(moduleId: number, target: string): Promise<string[]> {
+  const res = await fetch(`https://api.github.com/users/${encodeURIComponent(target)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint", Accept: "application/vnd.github+json" },
+  });
+  if (res.status === 404) {
+    return [
+      `[MODULE ${moduleId}] GITHUB LOOKUP — executing on: ${target}`,
+      `[QUERY] GitHub public API user lookup`,
+      `[RESULT] account exists: false`,
+      `[DONE] Lookup complete — no GitHub account found for this username.`,
+    ];
+  }
+  if (!res.ok) {
+    throw new Error(`GitHub API responded with status ${res.status}`);
+  }
+  const data = (await res.json()) as {
+    login?: string;
+    name?: string;
+    bio?: string;
+    public_repos?: number;
+    followers?: number;
+    following?: number;
+    created_at?: string;
+    location?: string;
+    company?: string;
+    html_url?: string;
+  };
+  return [
+    `[MODULE ${moduleId}] GITHUB LOOKUP — executing on: ${target}`,
+    `[QUERY] GitHub public API user lookup`,
+    `[RESULT] account exists: true`,
+    `[RESULT] username: ${data.login ?? target}`,
+    `[RESULT] display name: ${data.name ?? "n/a"}`,
+    `[RESULT] bio: ${data.bio ?? "n/a"}`,
+    `[RESULT] location: ${data.location ?? "n/a"}`,
+    `[RESULT] company: ${data.company ?? "n/a"}`,
+    `[RESULT] public repos: ${String(data.public_repos ?? 0)}`,
+    `[RESULT] followers: ${String(data.followers ?? 0)} | following: ${String(data.following ?? 0)}`,
+    `[RESULT] account created: ${data.created_at ?? "unknown"}`,
+    `[RESULT] profile url: ${data.html_url ?? `https://github.com/${target}`}`,
+    `[DONE] Lookup complete.`,
+  ];
+}
+
+async function fetchUsernameCheckLines(moduleId: number, target: string): Promise<string[]> {
+  const platforms: Array<{ name: string; check: () => Promise<boolean> }> = [
+    {
+      name: "GitHub",
+      check: async () => {
+        const r = await fetch(`https://api.github.com/users/${encodeURIComponent(target)}`, {
+          headers: { "User-Agent": "swept-sentinel-osint" },
+        });
+        return r.status === 200;
+      },
+    },
+    {
+      name: "Reddit",
+      check: async () => {
+        const r = await fetch(`https://www.reddit.com/user/${encodeURIComponent(target)}/about.json`, {
+          headers: { "User-Agent": "swept-sentinel-osint" },
+        });
+        return r.status === 200;
+      },
+    },
+  ];
+
+  const lines: string[] = [
+    `[MODULE ${moduleId}] USERNAME CHECK — executing on: ${target}`,
+    `[QUERY] live availability check across platforms`,
+  ];
+
+  for (const p of platforms) {
+    let taken = false;
+    try {
+      taken = await p.check();
+    } catch {
+      taken = false;
+    }
+    lines.push(`[PLATFORM ${p.name}] ${taken ? "TAKEN" : "available / not found"}`);
+  }
+  lines.push(`[DONE] Username check complete.`);
+  return lines;
+}
+
+function fetchSslCertLines(moduleId: number, target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").split("/")[0];
+  return new Promise((resolve) => {
+    const socket = tls.connect(
+      { host: domain, port: 443, servername: domain, timeout: 5000, rejectUnauthorized: false },
+      () => {
+        const cert = socket.getPeerCertificate();
+        const lines: string[] = [
+          `[MODULE ${moduleId}] SSL CERT INFO — executing on: ${domain}`,
+          `[QUERY] live TLS certificate handshake`,
+        ];
+        if (cert && Object.keys(cert).length > 0) {
+          lines.push(`[RESULT] subject: ${cert.subject?.CN ?? "unknown"}`);
+          lines.push(`[RESULT] issuer: ${cert.issuer?.O ?? cert.issuer?.CN ?? "unknown"}`);
+          lines.push(`[RESULT] valid from: ${cert.valid_from ?? "unknown"}`);
+          lines.push(`[RESULT] valid to: ${cert.valid_to ?? "unknown"}`);
+          lines.push(`[RESULT] serial number: ${cert.serialNumber ?? "unknown"}`);
+          const altNames = (cert.subjectaltname ?? "").split(", ").slice(0, 8).join(", ");
+          lines.push(`[RESULT] alt names: ${altNames || "none"}`);
+          lines.push(`[RESULT] tls protocol: ${socket.getProtocol() ?? "unknown"}`);
+        } else {
+          lines.push(`[ERROR] no certificate returned`);
+        }
+        lines.push(`[DONE] Certificate inspection complete.`);
+        socket.destroy();
+        resolve(lines);
+      },
+    );
+    socket.once("error", (err: Error) => {
+      resolve([
+        `[MODULE ${moduleId}] SSL CERT INFO — executing on: ${domain}`,
+        `[ERROR] ${err.message}`,
+        `[DONE] Certificate inspection failed.`,
+      ]);
+    });
+    socket.once("timeout", () => {
+      socket.destroy();
+      resolve([
+        `[MODULE ${moduleId}] SSL CERT INFO — executing on: ${domain}`,
+        `[ERROR] connection timed out`,
+        `[DONE] Certificate inspection failed.`,
+      ]);
+    });
+  });
+}
+
+async function fetchWaybackLines(moduleId: number, target: string): Promise<string[]> {
+  const res = await fetch(`https://archive.org/wayback/available?url=${encodeURIComponent(target)}`);
+  if (!res.ok) {
+    throw new Error(`archive.org responded with status ${res.status}`);
+  }
+  const data = (await res.json()) as {
+    archived_snapshots?: {
+      closest?: { available?: boolean; url?: string; timestamp?: string; status?: string };
+    };
+  };
+  const snap = data.archived_snapshots?.closest;
+  const lines: string[] = [
+    `[MODULE ${moduleId}] WAYBACK CHECK — executing on: ${target}`,
+    `[QUERY] archive.org Wayback Machine availability check`,
+  ];
+  if (snap?.available) {
+    lines.push(`[RESULT] archived: true`);
+    lines.push(`[RESULT] closest snapshot: ${snap.timestamp ?? "unknown"}`);
+    lines.push(`[RESULT] snapshot url: ${snap.url ?? "n/a"}`);
+    lines.push(`[RESULT] http status at capture: ${snap.status ?? "unknown"}`);
+  } else {
+    lines.push(`[RESULT] archived: false`);
+    lines.push(`[RESULT] no snapshots found for this URL`);
+  }
+  lines.push(`[DONE] Wayback lookup complete.`);
+  return lines;
+}
+
+async function fetchHttpFingerprintLines(moduleId: number, target: string): Promise<string[]> {
+  const url = target.startsWith("http") ? target : `https://${target}`;
+  const res = await fetch(url, { redirect: "follow" });
+  const cfRay = res.headers.get("cf-ray");
+  const via = res.headers.get("via");
+  const servedBy = res.headers.get("x-served-by");
+  const cdnIndicator = cfRay ? "Cloudflare" : (via ?? servedBy ?? "unknown");
+  return [
+    `[MODULE ${moduleId}] HTTP FINGERPRINT — executing on: ${target}`,
+    `[QUERY] live HTTP header + tech fingerprint scan`,
+    `[RESULT] final url: ${res.url}`,
+    `[RESULT] status: ${res.status} ${res.statusText}`,
+    `[RESULT] server: ${res.headers.get("server") ?? "not disclosed"}`,
+    `[RESULT] x-powered-by: ${res.headers.get("x-powered-by") ?? "not disclosed"}`,
+    `[RESULT] content-type: ${res.headers.get("content-type") ?? "unknown"}`,
+    `[RESULT] cache-control: ${res.headers.get("cache-control") ?? "none"}`,
+    `[RESULT] set-cookie present: ${String(res.headers.has("set-cookie"))}`,
+    `[RESULT] cdn indicator: ${cdnIndicator}`,
+    `[DONE] Fingerprint scan complete.`,
+  ];
+}
+
+async function fetchBgpRouteLines(moduleId: number, target: string): Promise<string[]> {
+  let ip = target;
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(target) || target.includes(":");
+  if (!isIp) {
+    try {
+      const addrs = await dns.resolve4(target);
+      ip = addrs[0] ?? target;
+    } catch {
+      throw new Error(`could not resolve ${target} to an IP address`);
+    }
+  }
+  const res = await fetch(`https://ipinfo.io/${encodeURIComponent(ip)}/json`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (!res.ok) {
+    throw new Error(`ipinfo.io responded with status ${res.status}`);
+  }
+  const data = (await res.json()) as {
+    ip?: string;
+    org?: string;
+    country?: string;
+    city?: string;
+    region?: string;
+    anycast?: boolean;
+    bogon?: boolean;
+  };
+  if (data.bogon) {
+    throw new Error("target is a bogon/private address — no BGP route data available");
+  }
+  const orgMatch = data.org?.match(/^(AS\d+)\s+(.*)$/);
+  const asn = orgMatch?.[1] ?? "unknown";
+  const asName = orgMatch?.[2] ?? data.org ?? "unknown";
+  const lines: string[] = [
+    `[MODULE ${moduleId}] BGP ROUTE — executing on: ${target}`,
+    `[QUERY] ipinfo.io ASN + network ownership lookup`,
+    `[RESULT] ip: ${data.ip ?? ip}`,
+    `[RESULT] asn: ${asn}`,
+    `[RESULT] as name: ${asName}`,
+    `[RESULT] country: ${data.country ?? "unknown"}`,
+    `[RESULT] region/city: ${data.region ?? "unknown"}, ${data.city ?? "unknown"}`,
+    `[RESULT] anycast: ${String(data.anycast ?? false)}`,
+  ];
+  lines.push(`[DONE] BGP route lookup complete.`);
+  return lines;
+}
+
+async function fetchDmarcAnalyzeLines(moduleId: number, target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").split("/")[0];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] DMARC ANALYZE — executing on: ${domain}`,
+    `[QUERY] DNS TXT lookup for SPF + DMARC records`,
+  ];
+
+  let spf: string | null = null;
+  try {
+    const txt = await dns.resolveTxt(domain);
+    const flat = txt.map((t) => t.join(""));
+    spf = flat.find((t) => t.toLowerCase().startsWith("v=spf1")) ?? null;
+  } catch {
+    spf = null;
+  }
+  lines.push(`[SPF] ${spf ?? "no SPF record found"}`);
+
+  let dmarc: string | null = null;
+  try {
+    const txt = await dns.resolveTxt(`_dmarc.${domain}`);
+    const flat = txt.map((t) => t.join(""));
+    dmarc = flat.find((t) => t.toLowerCase().startsWith("v=dmarc1")) ?? flat[0] ?? null;
+  } catch {
+    dmarc = null;
+  }
+  lines.push(`[DMARC] ${dmarc ?? "no DMARC record found"}`);
+
+  const policyMatch = dmarc?.match(/p=([a-zA-Z]+)/);
+  const policy = policyMatch?.[1] ?? "none";
+  const risk = !spf && !dmarc
+    ? "HIGH — no email authentication configured"
+    : !dmarc
+      ? "MEDIUM — SPF only, no DMARC enforcement"
+      : policy === "none"
+        ? "MEDIUM — DMARC present but policy is 'none' (monitor only)"
+        : "LOW — SPF + DMARC enforced";
+  lines.push(`[ASSESSMENT] dmarc policy: ${policy}`);
+  lines.push(`[ASSESSMENT] risk level: ${risk}`);
+  lines.push(`[DONE] DMARC analysis complete.`);
+  return lines;
+}
+
 async function runRealLookup(
   moduleId: number,
   target: string,
@@ -369,6 +643,20 @@ async function runRealLookup(
       lines = await fetchPortScanLines(target);
     } else if (moduleId === 5) {
       lines = await fetchWhoisLines(target);
+    } else if (moduleId === 11) {
+      lines = await fetchGithubLookupLines(moduleId, target);
+    } else if (moduleId === 12) {
+      lines = await fetchUsernameCheckLines(moduleId, target);
+    } else if (moduleId === 92) {
+      lines = await fetchSslCertLines(moduleId, target);
+    } else if (moduleId === 93) {
+      lines = await fetchWaybackLines(moduleId, target);
+    } else if (moduleId === 94) {
+      lines = await fetchHttpFingerprintLines(moduleId, target);
+    } else if (moduleId === 201) {
+      lines = await fetchBgpRouteLines(moduleId, target);
+    } else if (moduleId === 230) {
+      lines = await fetchDmarcAnalyzeLines(moduleId, target);
     } else {
       lines = await fetchIpLookupLines(moduleId, target);
     }
