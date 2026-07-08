@@ -40,6 +40,10 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   93: "WAYBACK CHECK",
   94: "HTTP FINGERPRINT",
   95: "REVERSE IP",
+  96: "TECH STACK",
+  97: "ADMIN FINDER",
+  98: "ROBOTS SCAN",
+  99: "API PROBE",
   131: "SQL MAP",
   151: "CVE LOOKUP",
   152: "MAC LOOKUP",
@@ -79,7 +83,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 71, 92, 93, 94, 95, 151, 152, 201, 207, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 71, 92, 93, 94, 95, 96, 97, 98, 99, 151, 152, 201, 207, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -717,6 +721,234 @@ async function fetchPeopleSearchLines(moduleId: number, target: string): Promise
   return lines;
 }
 
+async function fetchTechStackLines(moduleId: number, target: string): Promise<string[]> {
+  const base = target.startsWith("http") ? target : `https://${target}`;
+  const domain = base.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const lines: string[] = [
+    `[MODULE ${moduleId}] TECH STACK — executing on: ${domain}`,
+    `[QUERY] fetch page source + header analysis for CMS/framework fingerprinting`,
+  ];
+  const res = await fetch(base, {
+    signal: AbortSignal.timeout(10000),
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; swept-sentinel-osint)" },
+  });
+  const html = await res.text();
+  const headers: Record<string, string> = {};
+  res.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
+
+  const SERVER_SIGS: [string, string][] = [
+    ["Apache", /apache/i], ["Nginx", /nginx/i], ["IIS", /iis|microsoft-iis/i],
+    ["LiteSpeed", /litespeed/i], ["Caddy", /caddy/i], ["OpenResty", /openresty/i],
+  ].map(([n, r]) => [n as string, r as unknown as string]) as [string, string][];
+  const serverRaw = headers["server"] ?? "";
+  const server = SERVER_SIGS.find(([, r]) => new RegExp(r).test(serverRaw))?.[0] ?? (serverRaw || "unknown");
+
+  const CMS: [string, RegExp][] = [
+    ["WordPress", /wp-content|wp-includes|wordpress/i],
+    ["Drupal", /drupal|sites\/default\/files/i],
+    ["Joomla", /joomla|\/components\/com_/i],
+    ["Shopify", /shopify|cdn\.shopify/i],
+    ["Squarespace", /squarespace/i],
+    ["Wix", /wix\.com|wixsite/i],
+    ["Webflow", /webflow/i],
+    ["Ghost", /ghost\.org|content\/themes/i],
+    ["Magento", /magento|mage\/cookies/i],
+    ["PrestaShop", /prestashop/i],
+    ["HubSpot", /hubspot|hs-scripts/i],
+  ];
+  const JS_FRAMEWORKS: [string, RegExp][] = [
+    ["React", /react(?:\.min)?\.js|__reactFiber|_reactRootContainer/i],
+    ["Vue.js", /vue(?:\.min)?\.js|__vue__|v-bind|v-if/i],
+    ["Angular", /angular(?:\.min)?\.js|ng-version|ng-app/i],
+    ["Next.js", /__NEXT_DATA__|_next\/static/i],
+    ["Nuxt.js", /__nuxt__|_nuxt\//i],
+    ["Svelte", /svelte/i],
+    ["jQuery", /jquery(?:\.min)?\.js/i],
+    ["Bootstrap", /bootstrap(?:\.min)?\.(?:css|js)/i],
+    ["Tailwind", /tailwind/i],
+    ["Ember.js", /ember(?:\.min)?\.js/i],
+  ];
+  const ANALYTICS: [string, RegExp][] = [
+    ["Google Analytics", /google-analytics|gtag|UA-\d|G-[A-Z0-9]/],
+    ["Google Tag Manager", /googletagmanager/i],
+    ["Hotjar", /hotjar/i],
+    ["Segment", /segment\.com|analytics\.js/i],
+    ["Mixpanel", /mixpanel/i],
+    ["Plausible", /plausible\.io/i],
+    ["Sentry", /sentry/i],
+  ];
+
+  const detectedCms = CMS.filter(([, r]) => r.test(html)).map(([n]) => n);
+  const detectedJs = JS_FRAMEWORKS.filter(([, r]) => r.test(html)).map(([n]) => n);
+  const detectedAnalytics = ANALYTICS.filter(([, r]) => r.test(html)).map(([n]) => n);
+
+  const poweredBy = headers["x-powered-by"] ?? null;
+  const generator = html.match(/<meta[^>]+name=["']generator["'][^>]+content=["']([^"']+)["']/i)?.[1] ?? null;
+
+  lines.push(`[RESULT] server: ${server}`);
+  if (poweredBy) lines.push(`[RESULT] x-powered-by: ${poweredBy}`);
+  if (generator) lines.push(`[RESULT] generator meta: ${generator}`);
+  lines.push(`[CMS] ${detectedCms.length > 0 ? detectedCms.join(", ") : "none detected"}`);
+  lines.push(`[JS FRAMEWORKS] ${detectedJs.length > 0 ? detectedJs.join(", ") : "none detected"}`);
+  lines.push(`[ANALYTICS] ${detectedAnalytics.length > 0 ? detectedAnalytics.join(", ") : "none detected"}`);
+
+  const hasHttps = base.startsWith("https");
+  lines.push(`[RESULT] https: ${hasHttps}`);
+  lines.push(`[RESULT] status: ${res.status} ${res.statusText}`);
+  lines.push(`[DONE] Tech stack analysis complete.`);
+  return lines;
+}
+
+async function fetchAdminFinderLines(moduleId: number, target: string): Promise<string[]> {
+  const base = (target.startsWith("http") ? target : `https://${target}`).replace(/\/$/, "");
+  const domain = base.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const PATHS = [
+    "/admin", "/admin/", "/administrator", "/administrator/",
+    "/wp-admin", "/wp-admin/", "/wp-login.php",
+    "/login", "/login.php", "/signin",
+    "/dashboard", "/panel", "/cpanel",
+    "/manager", "/management", "/backend",
+    "/user/login", "/users/sign_in", "/account/login",
+    "/auth", "/auth/login", "/secure",
+    "/phpmyadmin", "/pma", "/phpMyAdmin",
+    "/webmail", "/mail",
+  ];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ADMIN FINDER — executing on: ${domain}`,
+    `[QUERY] probing ${PATHS.length} common admin/login paths`,
+  ];
+  const found: string[] = [];
+  const redirects: string[] = [];
+  await Promise.all(
+    PATHS.map(async (p) => {
+      try {
+        const r = await fetch(`${base}${p}`, {
+          method: "HEAD",
+          redirect: "manual",
+          signal: AbortSignal.timeout(5000),
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; swept-sentinel-osint)" },
+        });
+        if (r.status === 200 || r.status === 401 || r.status === 403) {
+          found.push(`${p}  [${r.status}]`);
+        } else if (r.status >= 301 && r.status <= 308) {
+          const loc = r.headers.get("location") ?? "";
+          redirects.push(`${p}  [${r.status}] → ${loc}`);
+        }
+      } catch { /* timeout / unreachable */ }
+    }),
+  );
+  lines.push(`[RESULT] accessible panels found: ${found.length}`);
+  for (const f of found) lines.push(`[HIT] ${f}`);
+  lines.push(`[RESULT] redirects found: ${redirects.length}`);
+  for (const r of redirects.slice(0, 5)) lines.push(`[REDIRECT] ${r}`);
+  if (found.length === 0 && redirects.length === 0) lines.push(`[RESULT] no admin panels found`);
+  lines.push(`[DONE] Admin finder scan complete.`);
+  return lines;
+}
+
+async function fetchRobotsScanLines(moduleId: number, target: string): Promise<string[]> {
+  const base = (target.startsWith("http") ? target : `https://${target}`).replace(/\/$/, "");
+  const domain = base.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ROBOTS SCAN — executing on: ${domain}`,
+    `[QUERY] fetch robots.txt + sitemap.xml for hidden path disclosure`,
+  ];
+
+  let robotsText = "";
+  try {
+    const r = await fetch(`${base}/robots.txt`, {
+      signal: AbortSignal.timeout(8000),
+      headers: { "User-Agent": "swept-sentinel-osint" },
+    });
+    if (r.ok && r.headers.get("content-type")?.includes("text")) {
+      robotsText = await r.text();
+    }
+  } catch { /* skip */ }
+
+  if (robotsText) {
+    const robotsLines = robotsText.split("\n").map((l) => l.trim()).filter((l) => l);
+    const disallowed = robotsLines.filter((l) => l.toLowerCase().startsWith("disallow:")).map((l) => l.split(":")[1]?.trim()).filter(Boolean);
+    const allowed = robotsLines.filter((l) => l.toLowerCase().startsWith("allow:")).map((l) => l.split(":")[1]?.trim()).filter(Boolean);
+    const sitemaps = robotsLines.filter((l) => l.toLowerCase().startsWith("sitemap:")).map((l) => l.split(": ")[1]?.trim()).filter(Boolean);
+    lines.push(`[ROBOTS.TXT] found — ${robotsLines.length} directives`);
+    lines.push(`[RESULT] disallow entries: ${disallowed.length}`);
+    for (const p of disallowed.slice(0, 15)) lines.push(`  [DISALLOW] ${p}`);
+    lines.push(`[RESULT] allow entries: ${allowed.length}`);
+    for (const p of allowed.slice(0, 5)) lines.push(`  [ALLOW] ${p}`);
+    lines.push(`[RESULT] sitemaps referenced: ${sitemaps.length}`);
+    for (const s of sitemaps) lines.push(`  [SITEMAP] ${s}`);
+  } else {
+    lines.push(`[ROBOTS.TXT] not found or empty`);
+  }
+
+  let sitemapText = "";
+  try {
+    const r = await fetch(`${base}/sitemap.xml`, {
+      signal: AbortSignal.timeout(8000),
+      headers: { "User-Agent": "swept-sentinel-osint" },
+    });
+    if (r.ok) sitemapText = await r.text();
+  } catch { /* skip */ }
+
+  if (sitemapText && sitemapText.includes("<url")) {
+    const urls = [...sitemapText.matchAll(/<loc>([^<]+)<\/loc>/gi)].map((m) => m[1]);
+    lines.push(`[SITEMAP.XML] found — ${urls.length} URLs indexed`);
+    for (const u of urls.slice(0, 10)) lines.push(`  [URL] ${u}`);
+    if (urls.length > 10) lines.push(`  ... and ${urls.length - 10} more`);
+  } else {
+    lines.push(`[SITEMAP.XML] not found or not XML`);
+  }
+
+  lines.push(`[DONE] Robots scan complete.`);
+  return lines;
+}
+
+async function fetchApiProbeLines(moduleId: number, target: string): Promise<string[]> {
+  const base = (target.startsWith("http") ? target : `https://${target}`).replace(/\/$/, "");
+  const domain = base.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const ENDPOINTS = [
+    "/api", "/api/v1", "/api/v2", "/api/v3",
+    "/v1", "/v2", "/v3",
+    "/graphql", "/graphiql", "/playground",
+    "/swagger", "/swagger.json", "/swagger.yaml", "/swagger-ui.html",
+    "/openapi.json", "/openapi.yaml",
+    "/docs", "/api/docs", "/api-docs",
+    "/.well-known/openid-configuration",
+    "/health", "/healthz", "/ping", "/status",
+    "/metrics", "/actuator", "/actuator/health",
+    "/api/health", "/api/status",
+  ];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] API PROBE — executing on: ${domain}`,
+    `[QUERY] probing ${ENDPOINTS.length} common API/doc endpoints`,
+  ];
+  const found: string[] = [];
+  await Promise.all(
+    ENDPOINTS.map(async (p) => {
+      try {
+        const r = await fetch(`${base}${p}`, {
+          method: "GET",
+          redirect: "follow",
+          signal: AbortSignal.timeout(5000),
+          headers: { "User-Agent": "swept-sentinel-osint", "Accept": "application/json, */*" },
+        });
+        const ct = r.headers.get("content-type") ?? "";
+        if (r.status === 200) {
+          const hint = ct.includes("json") ? "JSON" : ct.includes("html") ? "HTML" : ct.includes("yaml") ? "YAML" : "unknown";
+          found.push(`${p}  [200 OK — ${hint}]`);
+        } else if (r.status === 401 || r.status === 403) {
+          found.push(`${p}  [${r.status} — protected, endpoint exists]`);
+        }
+      } catch { /* timeout / unreachable */ }
+    }),
+  );
+  lines.push(`[RESULT] live endpoints found: ${found.length}`);
+  for (const f of found) lines.push(`[ENDPOINT] ${f}`);
+  if (found.length === 0) lines.push(`[RESULT] no API endpoints discovered`);
+  lines.push(`[DONE] API probe complete.`);
+  return lines;
+}
+
 async function fetchReverseIpLines(moduleId: number, target: string): Promise<string[]> {
   let ip = target.trim();
   const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
@@ -1005,6 +1237,14 @@ async function runRealLookup(
       lines = await fetchHttpFingerprintLines(moduleId, target);
     } else if (moduleId === 95) {
       lines = await fetchReverseIpLines(moduleId, target);
+    } else if (moduleId === 96) {
+      lines = await fetchTechStackLines(moduleId, target);
+    } else if (moduleId === 97) {
+      lines = await fetchAdminFinderLines(moduleId, target);
+    } else if (moduleId === 98) {
+      lines = await fetchRobotsScanLines(moduleId, target);
+    } else if (moduleId === 99) {
+      lines = await fetchApiProbeLines(moduleId, target);
     } else if (moduleId === 151) {
       lines = await fetchCveLookupLines(moduleId, target);
     } else if (moduleId === 152) {
