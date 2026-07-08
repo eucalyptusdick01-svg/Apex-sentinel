@@ -40,6 +40,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   24: "AREA CODE",
   25: "BIZ DIRECTORY",
   26: "ID GENERATOR",
+  27: "ISO 8583",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -103,7 +104,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -761,6 +762,30 @@ async function fetchIdGeneratorLines(moduleId: number, target: string): Promise<
     proc.on("close", () => {
       lines.push(...output);
       lines.push("[DONE] ID generation complete.");
+      resolve(lines);
+    });
+  });
+}
+
+async function fetchIso8583Lines(moduleId: number, target: string): Promise<string[]> {
+  const scriptPath = path.join(__dirname, "..", "scripts", "iso8583_builder.py");
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ISO 8583 — executing on: ${target}`,
+    `[INFO] input: JSON field map or "default" for example message`,
+    `[INFO] example: {"t":"0100","2":"4111111111111111","3":"000000","4":"000000010000","49":"840"}`,
+  ];
+  return new Promise((resolve) => {
+    const proc = spawn("python3", [scriptPath, target.trim() || "default"]);
+    const output: string[] = [];
+    proc.stdout.on("data", (chunk: Buffer) => {
+      chunk.toString().split("\n").filter(Boolean).forEach((l) => output.push(l));
+    });
+    proc.stderr.on("data", (chunk: Buffer) => {
+      chunk.toString().split("\n").filter(Boolean).forEach((l) => output.push(`[STDERR] ${l}`));
+    });
+    proc.on("close", () => {
+      lines.push(...output);
+      lines.push("[DONE] ISO 8583 encoding complete.");
       resolve(lines);
     });
   });
@@ -2339,6 +2364,8 @@ async function runRealLookup(
       lines = await fetchBizDirectoryLines(moduleId, target);
     } else if (moduleId === 26) {
       lines = await fetchIdGeneratorLines(moduleId, target);
+    } else if (moduleId === 27) {
+      lines = await fetchIso8583Lines(moduleId, target);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
