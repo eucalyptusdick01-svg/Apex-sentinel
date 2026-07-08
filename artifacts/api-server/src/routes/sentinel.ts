@@ -42,6 +42,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   26: "ID GENERATOR",
   27: "ISO 8583",
   28: "ID STUDIO",
+  29: "DL ENCODER",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -105,7 +106,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -763,6 +764,30 @@ async function fetchIdGeneratorLines(moduleId: number, target: string): Promise<
     proc.on("close", () => {
       lines.push(...output);
       lines.push("[DONE] ID generation complete.");
+      resolve(lines);
+    });
+  });
+}
+
+async function fetchDlEncoderLines(moduleId: number, target: string): Promise<string[]> {
+  const scriptPath = path.join(__dirname, "..", "scripts", "dl_encoder.py");
+  const lines: string[] = [
+    `[MODULE ${moduleId}] DL ENCODER — encoding driver's license number`,
+    `[INFO] format: State,LastName,FirstName,MiddleName,MM,DD,YYYY,Gender,EyeColor`,
+    `[INFO] states: FL, IL, MD, MI, MN, NH, NJ, WA, WI`,
+    `[INFO] example: FL,Smith,John,Robert,03,15,1990,Male,`,
+  ];
+  return new Promise((resolve) => {
+    const proc = spawn("python3", [scriptPath, target.trim() || "help"]);
+    const output: string[] = [];
+    proc.stdout.on("data", (chunk: Buffer) => {
+      chunk.toString().split("\n").filter(Boolean).forEach((l) => output.push(l));
+    });
+    proc.stderr.on("data", (chunk: Buffer) => {
+      chunk.toString().split("\n").filter(Boolean).forEach((l) => output.push(`[STDERR] ${l}`));
+    });
+    proc.on("close", () => {
+      lines.push(...output);
       resolve(lines);
     });
   });
@@ -2391,6 +2416,8 @@ async function runRealLookup(
       lines = await fetchIso8583Lines(moduleId, target);
     } else if (moduleId === 28) {
       lines = await fetchIdStudioLines(moduleId, target);
+    } else if (moduleId === 29) {
+      lines = await fetchDlEncoderLines(moduleId, target);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
