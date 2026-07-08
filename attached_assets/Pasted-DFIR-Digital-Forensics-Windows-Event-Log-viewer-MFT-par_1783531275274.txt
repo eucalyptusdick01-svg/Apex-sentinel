@@ -1,0 +1,119 @@
+DFIR (Digital Forensics)
+Windows Event Log viewer
+MFT parser
+Prefetch viewer
+Registry browser
+USB device history
+Browser history analyzer
+Timeline generator
+Memory dump analyzer
+YARA rule scanner
+IOC (Indicators of Compromise) checker
+Malware Analysis
+PE file analyzer
+String extractor
+Entropy calculator
+Import/export table viewer
+Digital signature verifier
+Macro detector
+File type identifier
+Sandbox launcher (for isolated VMs you control)
+Networking
+ARP scanner
+TCP client/server tester
+UDP packet sender
+Packet capture viewer
+PCAP analyzer
+DNS cache viewer
+Network share browser
+Wake-on-LAN sender
+MAC address lookup
+Subdomain enumerator (for domains you own or have permission to test)
+Web Development
+REST API client
+GraphQL explorer
+Cookie inspector
+CORS checker
+CSP header analyzer
+Sitemap parser
+robots.txt analyzer
+HTML minifier
+CSS formatter
+JavaScript beautifier
+File Utilities
+Bulk file renamer
+Folder synchronization
+Duplicate photo finder
+EXIF editor
+Image optimizer
+Video metadata viewer
+Audio metadata editor
+PDF OCR
+File splitter/joiner
+Directory comparison
+Cryptography
+AES encrypt/decrypt
+RSA keypair generator
+PGP key manager
+Certificate viewer
+CSR generator
+X.509 certificate parser
+Random key generator
+Secure passphrase generator
+HMAC calculator
+Checksum comparison
+Programming
+Python package inspector
+Virtual environment manager
+Dependency checker
+Code statistics
+File tree generator
+Git log viewer
+Git diff viewer
+Environment variable editor
+Cron expression builder
+Regex library
+AI Utilities
+Prompt organizer
+Token counter
+Markdown-to-HTML converter
+Text summarizer (local model)
+OCR image reader
+Speech-to-text
+Text-to-speech
+Document search
+Code snippet manager
+Translation helper
+System Administration
+Service manager
+Scheduled task viewer
+Startup application manager
+Installed software inventory
+Environment variable editor
+Hosts file editor
+Disk health (SMART) viewer
+Process tree explorer
+Open handles viewer
+Resource monitor
+Miscellaneous
+ASCII art generator
+QR batch generator
+Password audit (against your own password lists)
+Calendar planner
+Time zone converter
+Currency converter
+Weather widget
+Clipboard history
+Random data generator
+Keyboard shortcut reference
+A few unique ideas that many toolkits don't include are:
+IOC manager (import/export CSV or STIX indicators)
+Local YARA rule editor and scanner
+Portable incident response report generator
+Evidence hashing and chain-of-custody log generator
+Certificate chain visualizer
+Docker container inspector
+SQLite database browser
+Log parser with filters and timelines
+Binary hex editor
+Configuration file comparison tool
