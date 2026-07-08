@@ -35,6 +35,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   19: "PAGE LINKS",
   20: "SHARED HOST",
   21: "ZONE TRANSFER",
+  22: "ZIP LOOKUP",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -98,7 +99,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -733,6 +734,202 @@ async function fetchPeopleSearchLines(moduleId: number, target: string): Promise
   }
   if (results.length === 0) lines.push(`[RESULT] no public profiles found for this target`);
   lines.push(`[DONE] People search complete.`);
+  return lines;
+}
+
+async function fetchPhoneOsintLines(moduleId: number, target: string): Promise<string[]> {
+  const raw = target.replace(/[\s\-().]/g, "");
+  const e164 = raw.startsWith("+") ? raw : `+${raw}`;
+  const digits = raw.replace(/\D/g, "");
+
+  const lines: string[] = [
+    `[MODULE ${moduleId}] PHONE OSINT — executing on: ${target}`,
+    `[QUERY] phone number format analysis + public records search`,
+  ];
+
+  let country = "unknown"; let region = "unknown"; let ccLen = 0;
+  if (e164.startsWith("+1") && digits.length === 11) {
+    country = "United States / Canada"; ccLen = 1;
+    const area = digits.slice(1, 4);
+    const US_AREAS: Record<string, string> = {
+      "201":"NJ","202":"DC","203":"CT","205":"AL","206":"WA","207":"ME",
+      "208":"ID","209":"CA","210":"TX","212":"NY","213":"CA","214":"TX",
+      "215":"PA","216":"OH","217":"IL","218":"MN","219":"IN","224":"IL",
+      "225":"LA","228":"MS","229":"GA","231":"MI","234":"OH","239":"FL",
+      "240":"MD","248":"MI","251":"AL","252":"NC","253":"WA","254":"TX",
+      "256":"AL","260":"IN","262":"WI","267":"PA","269":"MI","270":"KY",
+      "272":"PA","276":"VA","281":"TX","301":"MD","302":"DE","303":"CO",
+      "304":"WV","305":"FL","307":"WY","308":"NE","309":"IL","310":"CA",
+      "312":"IL","313":"MI","314":"MO","315":"NY","316":"KS","317":"IN",
+      "318":"LA","319":"IA","320":"MN","321":"FL","323":"CA","325":"TX",
+      "330":"OH","331":"IL","334":"AL","336":"NC","337":"LA","339":"MA",
+      "340":"VI","347":"NY","351":"MA","352":"FL","360":"WA","361":"TX",
+      "385":"UT","386":"FL","401":"RI","402":"NE","404":"GA","405":"OK",
+      "406":"MT","407":"FL","408":"CA","409":"TX","410":"MD","412":"PA",
+      "413":"MA","414":"WI","415":"CA","417":"MO","419":"OH","423":"TN",
+      "424":"CA","425":"WA","430":"TX","432":"TX","434":"VA","435":"UT",
+      "440":"OH","442":"CA","443":"MD","458":"OR","469":"TX","470":"GA",
+      "475":"CT","478":"GA","479":"AR","480":"AZ","484":"PA","501":"AR",
+      "502":"KY","503":"OR","504":"LA","505":"NM","507":"MN","508":"MA",
+      "509":"WA","510":"CA","512":"TX","513":"OH","515":"IA","516":"NY",
+      "517":"MI","518":"NY","520":"AZ","530":"CA","539":"OK","540":"VA",
+      "541":"OR","551":"NJ","559":"CA","561":"FL","562":"CA","563":"IA",
+      "564":"WA","567":"OH","570":"PA","571":"VA","573":"MO","574":"IN",
+      "575":"NM","580":"OK","585":"NY","586":"MI","601":"MS","602":"AZ",
+      "603":"NH","605":"SD","606":"KY","607":"NY","608":"WI","609":"NJ",
+      "610":"PA","612":"MN","614":"OH","615":"TN","616":"MI","617":"MA",
+      "618":"IL","619":"CA","620":"KS","623":"AZ","626":"CA","628":"CA",
+      "629":"TN","630":"IL","631":"NY","636":"MO","641":"IA","646":"NY",
+      "650":"CA","651":"MN","657":"CA","660":"MO","661":"CA","662":"MS",
+      "667":"MD","669":"CA","678":"GA","681":"WV","682":"TX","701":"ND",
+      "702":"NV","703":"VA","704":"NC","706":"GA","707":"CA","708":"IL",
+      "712":"IA","713":"TX","714":"CA","715":"WI","716":"NY","717":"PA",
+      "718":"NY","719":"CO","720":"CO","724":"PA","725":"NV","727":"FL",
+      "731":"TN","732":"NJ","734":"MI","737":"TX","740":"OH","743":"NC",
+      "747":"CA","754":"FL","757":"VA","760":"CA","762":"GA","763":"MN",
+      "765":"IN","769":"MS","770":"GA","771":"VA","772":"FL","773":"IL",
+      "774":"MA","775":"NV","779":"IL","781":"MA","785":"KS","786":"FL",
+      "801":"UT","802":"VT","803":"SC","804":"VA","805":"CA","806":"TX",
+      "808":"HI","810":"MI","812":"IN","813":"FL","814":"PA","815":"IL",
+      "816":"MO","817":"TX","818":"CA","828":"NC","830":"TX","831":"CA",
+      "832":"TX","843":"SC","845":"NY","847":"IL","848":"NJ","850":"FL",
+      "856":"NJ","857":"MA","858":"CA","859":"KY","860":"CT","862":"NJ",
+      "863":"FL","864":"SC","865":"TN","870":"AR","872":"IL","878":"PA",
+      "901":"TN","903":"TX","904":"FL","906":"MI","907":"AK","908":"NJ",
+      "909":"CA","910":"NC","912":"GA","913":"KS","914":"NY","915":"TX",
+      "916":"CA","917":"NY","918":"OK","919":"NC","920":"WI","925":"CA",
+      "928":"AZ","929":"NY","930":"IN","931":"TN","936":"TX","937":"OH",
+      "940":"TX","941":"FL","945":"TX","947":"MI","949":"CA","951":"CA",
+      "952":"MN","954":"FL","956":"TX","959":"CT","970":"CO","971":"OR",
+      "972":"TX","973":"NJ","978":"MA","979":"TX","980":"NC","984":"NC",
+      "985":"LA","989":"MI",
+    };
+    region = US_AREAS[area] ? `US — ${US_AREAS[area]} (area ${area})` : `US/CA area code ${area}`;
+    const localPart = digits.slice(4);
+    lines.push(`[RESULT] format: valid E.164`);
+    lines.push(`[RESULT] country: ${country}`);
+    lines.push(`[RESULT] region: ${region}`);
+    lines.push(`[RESULT] number: +1 (${area}) ${localPart.slice(0,3)}-${localPart.slice(3)}`);
+    lines.push(`[RESULT] length: ${digits.length} digits — ${digits.length === 11 ? "valid NANP" : "invalid NANP"}`);
+  } else if (e164.startsWith("+44")) {
+    country = "United Kingdom"; ccLen = 2;
+    lines.push(`[RESULT] country: United Kingdom (+44)`);
+    lines.push(`[RESULT] format: UK number, ${digits.length} digits`);
+  } else if (e164.startsWith("+33")) {
+    country = "France"; lines.push(`[RESULT] country: France (+33)`);
+  } else if (e164.startsWith("+49")) {
+    country = "Germany"; lines.push(`[RESULT] country: Germany (+49)`);
+  } else if (e164.startsWith("+61")) {
+    country = "Australia"; lines.push(`[RESULT] country: Australia (+61)`);
+  } else if (e164.startsWith("+91")) {
+    country = "India"; lines.push(`[RESULT] country: India (+91)`);
+  } else if (e164.startsWith("+86")) {
+    country = "China"; lines.push(`[RESULT] country: China (+86)`);
+  } else if (e164.startsWith("+55")) {
+    country = "Brazil"; lines.push(`[RESULT] country: Brazil (+55)`);
+  } else if (e164.startsWith("+7")) {
+    country = "Russia/Kazakhstan"; lines.push(`[RESULT] country: Russia/Kazakhstan (+7)`);
+  } else if (e164.startsWith("+81")) {
+    country = "Japan"; lines.push(`[RESULT] country: Japan (+81)`);
+  } else if (e164.startsWith("+52")) {
+    country = "Mexico"; lines.push(`[RESULT] country: Mexico (+52)`);
+  } else {
+    lines.push(`[RESULT] format: ${e164.startsWith("+") ? "international" : "unknown"}`);
+    lines.push(`[RESULT] country: unrecognized prefix`);
+  }
+  lines.push(`[RESULT] digits: ${digits.length}`);
+
+  const serpKey = process.env["SERPAPI_KEY"];
+  if (serpKey) {
+    lines.push(`[QUERY] public records search via SerpApi`);
+    try {
+      const q = encodeURIComponent(`"${target}"`);
+      const r = await fetch(`https://serpapi.com/search.json?q=${q}&num=5&api_key=${serpKey}`, {
+        headers: { "User-Agent": "swept-sentinel-osint" },
+      });
+      if (r.ok) {
+        const data = (await r.json()) as {
+          organic_results?: Array<{ title?: string; link?: string; snippet?: string }>;
+        };
+        const results = data.organic_results ?? [];
+        lines.push(`[RESULT] public records indexed: ${results.length}`);
+        for (const res of results.slice(0, 5)) {
+          lines.push(`[RECORD] ${res.title ?? "untitled"}`);
+          lines.push(`  url: ${res.link ?? "unknown"}`);
+          if (res.snippet) lines.push(`  ${res.snippet.slice(0, 140)}`);
+        }
+        if (results.length === 0) lines.push(`[RESULT] no public records found for this number`);
+      }
+    } catch (e) {
+      lines.push(`[WARN] public records search failed: ${(e as Error).message}`);
+    }
+  } else {
+    lines.push(`[INFO] SERPAPI_KEY not set — skipping public records search`);
+  }
+  lines.push(`[DONE] Phone OSINT complete.`);
+  return lines;
+}
+
+async function fetchZipLookupLines(moduleId: number, target: string): Promise<string[]> {
+  const input = target.trim().toUpperCase().replace(/\s+/g, " ");
+  let countryCode = "us";
+  let zip = input;
+
+  const caMatch = input.match(/^[A-Z]\d[A-Z](\s?\d[A-Z]\d)?$/);
+  const ukMatch = input.match(/^[A-Z]{1,2}\d{1,2}[A-Z]?(\s?\d[A-Z]{2})?$/);
+
+  if (caMatch) {
+    countryCode = "ca";
+    zip = input.replace(" ", "").slice(0, 3);
+  } else if (ukMatch && !/^\d+$/.test(input)) {
+    countryCode = "gb";
+    zip = input.replace(" ", "").slice(0, 4);
+  } else if (/^\d{5}(-\d{4})?$/.test(input)) {
+    countryCode = "us";
+    zip = input.slice(0, 5);
+  }
+
+  const res = await fetch(`https://api.zippopotam.us/${countryCode}/${encodeURIComponent(zip)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (res.status === 404) {
+    return [
+      `[MODULE ${moduleId}] ZIP LOOKUP — executing on: ${input}`,
+      `[QUERY] Zippopotam.us postal code database`,
+      `[RESULT] no data found — try US zip (90210), UK postcode (SW1A), or Canadian postal prefix (M5V)`,
+      `[DONE] ZIP lookup complete.`,
+    ];
+  }
+  if (!res.ok) throw new Error(`Zippopotam.us responded with ${res.status}`);
+
+  const data = (await res.json()) as {
+    country?: string;
+    "country abbreviation"?: string;
+    "post code"?: string;
+    places?: Array<{
+      "place name"?: string;
+      longitude?: string;
+      latitude?: string;
+      state?: string;
+      "state abbreviation"?: string;
+    }>;
+  };
+
+  const places = data.places ?? [];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ZIP LOOKUP — executing on: ${input}`,
+    `[QUERY] Zippopotam.us postal code database`,
+    `[RESULT] postal code: ${data["post code"] ?? zip}`,
+    `[RESULT] country: ${data.country ?? "unknown"} (${data["country abbreviation"] ?? countryCode.toUpperCase()})`,
+    `[RESULT] places found: ${places.length}`,
+  ];
+  for (const p of places) {
+    lines.push(`[PLACE] ${p["place name"] ?? "unknown"}`);
+    if (p.state) lines.push(`  state/region: ${p.state} (${p["state abbreviation"] ?? ""})`);
+    if (p.latitude && p.longitude)
+      lines.push(`  coordinates: ${p.latitude}, ${p.longitude}`);
+  }
+  lines.push(`[DONE] ZIP lookup complete.`);
   return lines;
 }
 
@@ -1724,6 +1921,8 @@ async function runRealLookup(
       lines = await fetchAsnLookupLines(moduleId, target);
     } else if (moduleId === 5) {
       lines = await fetchWhoisLines(target);
+    } else if (moduleId === 6) {
+      lines = await fetchPhoneOsintLines(moduleId, target);
     } else if (moduleId === 9) {
       lines = await fetchDbSearchLines(moduleId, target);
     } else if (moduleId === 11) {
@@ -1748,6 +1947,8 @@ async function runRealLookup(
       lines = await fetchSharedHostLines(moduleId, target);
     } else if (moduleId === 21) {
       lines = await fetchZoneTransferLines(moduleId, target);
+    } else if (moduleId === 22) {
+      lines = await fetchZipLookupLines(moduleId, target);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
