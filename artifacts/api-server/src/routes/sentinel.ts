@@ -27,6 +27,8 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   12: "USERNAME CHECK",
   13: "NEWS SEARCH",
   14: "PEOPLE SEARCH",
+  15: "IMAGE SEARCH",
+  16: "SITE ENUM",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -38,6 +40,8 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   93: "WAYBACK CHECK",
   94: "HTTP FINGERPRINT",
   131: "SQL MAP",
+  151: "CVE LOOKUP",
+  152: "MAC LOOKUP",
   201: "BGP ROUTE",
   207: "CDN ORIGIN",
   230: "DMARC ANALYZE",
@@ -74,7 +78,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 92, 93, 94, 201, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 71, 92, 93, 94, 151, 152, 201, 207, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -712,6 +716,218 @@ async function fetchPeopleSearchLines(moduleId: number, target: string): Promise
   return lines;
 }
 
+async function fetchImageSearchLines(moduleId: number, target: string): Promise<string[]> {
+  const data = await fetchSerpApiResults(target, { engine: "google", tbm: "isch" });
+  const raw = data as unknown as { images_results?: Array<{ title?: string; original?: string; source?: string; thumbnail?: string }> };
+  const results = raw.images_results ?? [];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] IMAGE SEARCH — executing on: ${target}`,
+    `[QUERY] Google Images search via SerpApi`,
+    `[RESULT] images found: ${results.length}`,
+  ];
+  for (const r of results.slice(0, 8)) {
+    lines.push(`[IMAGE] ${r.title ?? "untitled"}`);
+    lines.push(`  source: ${r.source ?? "unknown"}`);
+    lines.push(`  url: ${r.original ?? r.thumbnail ?? "n/a"}`);
+  }
+  if (results.length === 0) lines.push(`[RESULT] no images found`);
+  lines.push(`[DONE] Image search complete.`);
+  return lines;
+}
+
+async function fetchSiteEnumLines(moduleId: number, target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const data = await fetchSerpApiResults(`site:${domain}`, { engine: "google", num: "20" });
+  const results = data.organic_results ?? [];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] SITE ENUM — executing on: ${domain}`,
+    `[QUERY] Google site: operator — indexed page enumeration via SerpApi`,
+    `[RESULT] indexed pages found: ${results.length}`,
+  ];
+  for (const r of results.slice(0, 15)) {
+    lines.push(`[PAGE] ${r.title ?? "untitled"}`);
+    lines.push(`  path: ${r.link ?? "n/a"}`);
+  }
+  if (results.length === 0) lines.push(`[RESULT] no indexed pages found for this domain`);
+  lines.push(`[DONE] Site enumeration complete.`);
+  return lines;
+}
+
+async function fetchVinCheckLines(moduleId: number, target: string): Promise<string[]> {
+  const vin = target.trim().toUpperCase();
+  const res = await fetch(
+    `https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${encodeURIComponent(vin)}?format=json`,
+    { headers: { "User-Agent": "swept-sentinel-osint" } },
+  );
+  if (!res.ok) throw new Error(`NHTSA API responded with status ${res.status}`);
+  const data = (await res.json()) as { Results: Array<{ Variable: string; Value: string | null }> };
+  const keep = [
+    "Make", "Model", "Model Year", "Vehicle Type", "Body Class", "Doors",
+    "Engine Number of Cylinders", "Displacement (L)", "Fuel Type - Primary",
+    "Transmission Style", "Drive Type", "Plant Country", "Plant State", "Plant City",
+    "Manufacturer Name", "Series", "Trim", "Error Text",
+  ];
+  const fields = data.Results.filter(
+    (r) => keep.includes(r.Variable) && r.Value && r.Value !== "Not Applicable" && r.Value !== "",
+  );
+  const lines: string[] = [
+    `[MODULE ${moduleId}] VIN CHECK — executing on: ${vin}`,
+    `[QUERY] NHTSA vehicle identification number decode (no API key required)`,
+    `[RESULT] vin length: ${vin.length} (${vin.length === 17 ? "valid" : "non-standard"})`,
+  ];
+  for (const f of fields) {
+    lines.push(`[FIELD] ${f.Variable}: ${f.Value}`);
+  }
+  if (fields.length === 0) lines.push(`[RESULT] no vehicle data found — check VIN format`);
+  lines.push(`[DONE] VIN decode complete.`);
+  return lines;
+}
+
+async function fetchCveLookupLines(moduleId: number, target: string): Promise<string[]> {
+  const isExactCve = /^CVE-\d{4}-\d+$/i.test(target.trim());
+  const url = isExactCve
+    ? `https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=${encodeURIComponent(target.trim().toUpperCase())}`
+    : `https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(target)}&resultsPerPage=10`;
+  const res = await fetch(url, { headers: { "User-Agent": "swept-sentinel-osint" } });
+  if (!res.ok) throw new Error(`NVD API responded with status ${res.status}`);
+  const data = (await res.json()) as {
+    totalResults: number;
+    vulnerabilities: Array<{
+      cve: {
+        id: string;
+        published: string;
+        lastModified: string;
+        vulnStatus: string;
+        descriptions: Array<{ lang: string; value: string }>;
+        metrics?: {
+          cvssMetricV31?: Array<{ cvssData?: { baseScore?: number; baseSeverity?: string; vectorString?: string } }>;
+          cvssMetricV2?: Array<{ cvssData?: { baseScore?: number } }>;
+        };
+      };
+    }>;
+  };
+  const total = data.totalResults ?? 0;
+  const vulns = data.vulnerabilities ?? [];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] CVE LOOKUP — executing on: ${target}`,
+    `[QUERY] NIST National Vulnerability Database (NVD) — free, no API key`,
+    `[RESULT] total matching CVEs: ${total}`,
+  ];
+  for (const v of vulns.slice(0, 8)) {
+    const cve = v.cve;
+    const desc = cve.descriptions.find((d) => d.lang === "en")?.value ?? "no description";
+    const score = cve.metrics?.cvssMetricV31?.[0]?.cvssData?.baseScore
+      ?? cve.metrics?.cvssMetricV2?.[0]?.cvssData?.baseScore
+      ?? null;
+    const severity = cve.metrics?.cvssMetricV31?.[0]?.cvssData?.baseSeverity ?? null;
+    lines.push(`[CVE] ${cve.id}  status: ${cve.vulnStatus}  published: ${cve.published.slice(0, 10)}`);
+    if (score !== null) lines.push(`  cvss score: ${score}${severity ? ` (${severity})` : ""}`);
+    lines.push(`  ${desc.slice(0, 150)}${desc.length > 150 ? "…" : ""}`);
+  }
+  if (vulns.length === 0) lines.push(`[RESULT] no CVEs found matching this query`);
+  lines.push(`[DONE] CVE lookup complete.`);
+  return lines;
+}
+
+async function fetchMacLookupLines(moduleId: number, target: string): Promise<string[]> {
+  const mac = target.trim();
+  const lines: string[] = [
+    `[MODULE ${moduleId}] MAC LOOKUP — executing on: ${mac}`,
+    `[QUERY] IEEE MAC vendor database lookup via api.macvendors.com`,
+  ];
+  const res = await fetch(`https://api.macvendors.com/${encodeURIComponent(mac)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (res.status === 404) {
+    lines.push(`[RESULT] vendor: not found — MAC prefix not in registry`);
+  } else if (res.status === 429) {
+    throw new Error("MAC vendor API rate-limited — wait a moment and retry");
+  } else if (!res.ok) {
+    throw new Error(`MAC vendor API responded with status ${res.status}`);
+  } else {
+    const vendor = await res.text();
+    lines.push(`[RESULT] vendor: ${vendor.trim()}`);
+    lines.push(`[RESULT] mac prefix: ${mac.substring(0, 8).toUpperCase()}`);
+    const oui = mac.replace(/[^0-9a-fA-F]/g, "").substring(0, 6).toUpperCase();
+    lines.push(`[RESULT] oui: ${oui}`);
+  }
+  lines.push(`[DONE] MAC vendor lookup complete.`);
+  return lines;
+}
+
+async function fetchCdnOriginLines(moduleId: number, target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const lines: string[] = [
+    `[MODULE ${moduleId}] CDN ORIGIN — executing on: ${domain}`,
+    `[QUERY] DNS CNAME chain + HTTP header fingerprinting`,
+  ];
+
+  let cnames: string[] = [];
+  try { cnames = await dns.resolveCname(domain); } catch { cnames = []; }
+  let wwwCnames: string[] = [];
+  try { wwwCnames = await dns.resolveCname(`www.${domain}`); } catch { wwwCnames = []; }
+  const allCnames = [...new Set([...cnames, ...wwwCnames])];
+
+  const CDN_SIGNATURES: Record<string, string[]> = {
+    Cloudflare: ["cloudflare", "cdn.cloudflare"],
+    Fastly: ["fastly", "fastly.net"],
+    Akamai: ["akamai", "edgekey", "akamaitechnologies"],
+    Cloudfront: ["cloudfront.net"],
+    "Azure CDN": ["azureedge", "azure"],
+    "Google Cloud CDN": ["googleapis", "googleusercontent"],
+    Vercel: ["vercel", "vercel-dns"],
+    Netlify: ["netlify"],
+    Sucuri: ["sucuri"],
+    StackPath: ["stackpath", "highwinds"],
+    Imperva: ["imperva", "incapsula"],
+  };
+
+  let detectedCdn = "unknown";
+  for (const cname of allCnames) {
+    for (const [cdn, sigs] of Object.entries(CDN_SIGNATURES)) {
+      if (sigs.some((s) => cname.toLowerCase().includes(s))) {
+        detectedCdn = cdn;
+        break;
+      }
+    }
+  }
+
+  if (allCnames.length > 0) {
+    lines.push(`[RESULT] cname records: ${allCnames.join(", ")}`);
+  } else {
+    lines.push(`[RESULT] no CNAME records found — direct A record`);
+  }
+  lines.push(`[RESULT] cdn detected: ${detectedCdn}`);
+
+  try {
+    const httpRes = await fetch(`https://${domain}`, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+      headers: { "User-Agent": "swept-sentinel-osint" },
+    });
+    const server = httpRes.headers.get("server") ?? "not disclosed";
+    const via = httpRes.headers.get("via") ?? "none";
+    const xServedBy = httpRes.headers.get("x-served-by") ?? httpRes.headers.get("x-cache") ?? "none";
+    const cfRay = httpRes.headers.get("cf-ray");
+    const xVercel = httpRes.headers.get("x-vercel-id");
+    const xAmz = httpRes.headers.get("x-amz-cf-id") ?? httpRes.headers.get("x-amz-request-id");
+
+    lines.push(`[HEADER] server: ${server}`);
+    if (via !== "none") lines.push(`[HEADER] via: ${via}`);
+    if (xServedBy !== "none") lines.push(`[HEADER] x-cache/x-served-by: ${xServedBy}`);
+    if (cfRay) { lines.push(`[CONFIRM] Cloudflare Ray ID detected — CDN: Cloudflare`); detectedCdn = "Cloudflare"; }
+    if (xVercel) { lines.push(`[CONFIRM] Vercel ID detected — CDN/Host: Vercel`); detectedCdn = "Vercel"; }
+    if (xAmz) { lines.push(`[CONFIRM] AWS identifier detected — CDN: CloudFront`); detectedCdn = "Cloudfront"; }
+  } catch {
+    lines.push(`[HEADER] HTTP header fetch failed — DNS-only result`);
+  }
+
+  lines.push(`[ASSESSMENT] cdn/edge: ${detectedCdn}`);
+  lines.push(`[DONE] CDN origin analysis complete.`);
+  return lines;
+}
+
 async function runRealLookup(
   moduleId: number,
   target: string,
@@ -738,14 +954,26 @@ async function runRealLookup(
       lines = await fetchNewsSearchLines(moduleId, target);
     } else if (moduleId === 14) {
       lines = await fetchPeopleSearchLines(moduleId, target);
+    } else if (moduleId === 15) {
+      lines = await fetchImageSearchLines(moduleId, target);
+    } else if (moduleId === 16) {
+      lines = await fetchSiteEnumLines(moduleId, target);
+    } else if (moduleId === 71) {
+      lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
       lines = await fetchSslCertLines(moduleId, target);
     } else if (moduleId === 93) {
       lines = await fetchWaybackLines(moduleId, target);
     } else if (moduleId === 94) {
       lines = await fetchHttpFingerprintLines(moduleId, target);
+    } else if (moduleId === 151) {
+      lines = await fetchCveLookupLines(moduleId, target);
+    } else if (moduleId === 152) {
+      lines = await fetchMacLookupLines(moduleId, target);
     } else if (moduleId === 201) {
       lines = await fetchBgpRouteLines(moduleId, target);
+    } else if (moduleId === 207) {
+      lines = await fetchCdnOriginLines(moduleId, target);
     } else if (moduleId === 230) {
       lines = await fetchDmarcAnalyzeLines(moduleId, target);
     } else {
