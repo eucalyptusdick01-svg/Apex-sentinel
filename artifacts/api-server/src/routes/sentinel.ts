@@ -39,6 +39,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   92: "SSL CERT INFO",
   93: "WAYBACK CHECK",
   94: "HTTP FINGERPRINT",
+  95: "REVERSE IP",
   131: "SQL MAP",
   151: "CVE LOOKUP",
   152: "MAC LOOKUP",
@@ -78,7 +79,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 71, 92, 93, 94, 151, 152, 201, 207, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 71, 92, 93, 94, 95, 151, 152, 201, 207, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -716,6 +717,42 @@ async function fetchPeopleSearchLines(moduleId: number, target: string): Promise
   return lines;
 }
 
+async function fetchReverseIpLines(moduleId: number, target: string): Promise<string[]> {
+  let ip = target.trim();
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
+  if (!isIp) {
+    try {
+      const addrs = await dns.resolve4(ip);
+      ip = addrs[0] ?? ip;
+    } catch {
+      throw new Error(`could not resolve ${target} to an IP address`);
+    }
+  }
+  const res = await fetch(`https://api.hackertarget.com/reverseiplookup/?q=${encodeURIComponent(ip)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (!res.ok) throw new Error(`HackerTarget API responded with status ${res.status}`);
+  const text = await res.text();
+  if (text.startsWith("error") || text.startsWith("API count")) {
+    throw new Error(text.trim());
+  }
+  const domains = text.split("\n").map((d) => d.trim()).filter((d) => d.length > 0);
+  const lines: string[] = [
+    `[MODULE ${moduleId}] REVERSE IP — executing on: ${ip}${!isIp ? ` (resolved from ${target})` : ""}`,
+    `[QUERY] HackerTarget reverse IP lookup — domains sharing this host`,
+    `[RESULT] domains found on ${ip}: ${domains.length}`,
+  ];
+  for (const d of domains.slice(0, 50)) {
+    lines.push(`[DOMAIN] ${d}`);
+  }
+  if (domains.length > 50) {
+    lines.push(`[RESULT] ... and ${domains.length - 50} more (showing first 50)`);
+  }
+  if (domains.length === 0) lines.push(`[RESULT] no domains found on this IP`);
+  lines.push(`[DONE] Reverse IP lookup complete.`);
+  return lines;
+}
+
 async function fetchImageSearchLines(moduleId: number, target: string): Promise<string[]> {
   const data = await fetchSerpApiResults(target, { engine: "google", tbm: "isch" });
   const raw = data as unknown as { images_results?: Array<{ title?: string; original?: string; source?: string; thumbnail?: string }> };
@@ -966,6 +1003,8 @@ async function runRealLookup(
       lines = await fetchWaybackLines(moduleId, target);
     } else if (moduleId === 94) {
       lines = await fetchHttpFingerprintLines(moduleId, target);
+    } else if (moduleId === 95) {
+      lines = await fetchReverseIpLines(moduleId, target);
     } else if (moduleId === 151) {
       lines = await fetchCveLookupLines(moduleId, target);
     } else if (moduleId === 152) {
