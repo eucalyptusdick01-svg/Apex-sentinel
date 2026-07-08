@@ -36,6 +36,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   20: "SHARED HOST",
   21: "ZONE TRANSFER",
   22: "ZIP LOOKUP",
+  23: "ADDRESS LOOKUP",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -99,7 +100,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -734,6 +735,93 @@ async function fetchPeopleSearchLines(moduleId: number, target: string): Promise
   }
   if (results.length === 0) lines.push(`[RESULT] no public profiles found for this target`);
   lines.push(`[DONE] People search complete.`);
+  return lines;
+}
+
+async function fetchAddressLookupLines(moduleId: number, target: string): Promise<string[]> {
+  const input = target.trim();
+  const isLatLon = /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(input);
+
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ADDRESS LOOKUP — executing on: ${input}`,
+  ];
+
+  if (isLatLon) {
+    const [lat, lon] = input.split(",").map((s) => s.trim());
+    lines.push(`[QUERY] Nominatim reverse geocode (lat/lon → address)`);
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
+      { headers: { "User-Agent": "swept-sentinel-osint" } },
+    );
+    if (!res.ok) throw new Error(`Nominatim responded with ${res.status}`);
+    const data = (await res.json()) as {
+      display_name?: string;
+      name?: string;
+      type?: string;
+      osm_type?: string;
+      place_id?: number;
+      address?: Record<string, string>;
+      boundingbox?: string[];
+    };
+    lines.push(`[RESULT] display: ${data.display_name ?? "unknown"}`);
+    lines.push(`[RESULT] type: ${data.osm_type ?? "?"} / ${data.type ?? "?"}`);
+    const addr = data.address ?? {};
+    const fields: [string, string][] = [
+      ["house_number", "number"], ["road", "road"], ["office", "office"],
+      ["building", "building"], ["amenity", "amenity"], ["suburb", "suburb"],
+      ["city", "city"], ["county", "county"], ["state", "state"],
+      ["postcode", "postcode"], ["country", "country"],
+    ];
+    for (const [key, label] of fields) {
+      if (addr[key]) lines.push(`  [${label}] ${addr[key]}`);
+    }
+    if (data.boundingbox) {
+      const [s, n, w, e] = data.boundingbox;
+      lines.push(`[RESULT] bounding box: ${s},${w} → ${n},${e}`);
+    }
+  } else {
+    lines.push(`[QUERY] Nominatim forward geocode (address → coordinates + details)`);
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&addressdetails=1&limit=5`,
+      { headers: { "User-Agent": "swept-sentinel-osint" } },
+    );
+    if (!res.ok) throw new Error(`Nominatim responded with ${res.status}`);
+    const data = (await res.json()) as Array<{
+      display_name?: string;
+      lat?: string;
+      lon?: string;
+      type?: string;
+      osm_type?: string;
+      importance?: number;
+      address?: Record<string, string>;
+      boundingbox?: string[];
+    }>;
+    if (!data.length) {
+      lines.push(`[RESULT] no results found for this address`);
+      lines.push(`[TIP] try a more complete address (e.g. "1600 Pennsylvania Ave NW Washington DC")`);
+    } else {
+      lines.push(`[RESULT] matches found: ${data.length}`);
+      for (const r of data) {
+        lines.push(`[MATCH] ${r.display_name ?? "unknown"}`);
+        lines.push(`  coordinates: ${r.lat}, ${r.lon}`);
+        lines.push(`  type: ${r.osm_type ?? "?"} / ${r.type ?? "?"}`);
+        lines.push(`  confidence: ${((r.importance ?? 0) * 100).toFixed(0)}%`);
+        const addr = r.address ?? {};
+        const city = addr["city"] ?? addr["town"] ?? addr["village"] ?? "";
+        const state = addr["state"] ?? "";
+        const country = addr["country"] ?? "";
+        const postcode = addr["postcode"] ?? "";
+        if (city || state || country)
+          lines.push(`  location: ${[city, state, postcode, country].filter(Boolean).join(", ")}`);
+        if (r.lat && r.lon) {
+          const lat = parseFloat(r.lat).toFixed(6);
+          const lon = parseFloat(r.lon).toFixed(6);
+          lines.push(`  maps: https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}&zoom=16`);
+        }
+      }
+    }
+  }
+  lines.push(`[DONE] Address lookup complete.`);
   return lines;
 }
 
@@ -1949,6 +2037,8 @@ async function runRealLookup(
       lines = await fetchZoneTransferLines(moduleId, target);
     } else if (moduleId === 22) {
       lines = await fetchZipLookupLines(moduleId, target);
+    } else if (moduleId === 23) {
+      lines = await fetchAddressLookupLines(moduleId, target);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
