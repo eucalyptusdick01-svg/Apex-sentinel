@@ -39,6 +39,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   23: "ADDRESS LOOKUP",
   24: "AREA CODE",
   25: "BIZ DIRECTORY",
+  26: "ID GENERATOR",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -102,7 +103,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -738,6 +739,31 @@ async function fetchPeopleSearchLines(moduleId: number, target: string): Promise
   if (results.length === 0) lines.push(`[RESULT] no public profiles found for this target`);
   lines.push(`[DONE] People search complete.`);
   return lines;
+}
+
+async function fetchIdGeneratorLines(moduleId: number, target: string): Promise<string[]> {
+  const scriptPath = path.join(__dirname, "..", "scripts", "id_generator.py");
+
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ID GENERATOR — executing on: ${target}`,
+    `[INFO] format: FirstName,LastName,Age,Birthdate(MM/DD/YYYY),State`,
+  ];
+
+  return new Promise((resolve) => {
+    const proc = spawn("python3", [scriptPath, target.trim()]);
+    const output: string[] = [];
+    proc.stdout.on("data", (chunk: Buffer) => {
+      chunk.toString().split("\n").filter(Boolean).forEach((l) => output.push(l));
+    });
+    proc.stderr.on("data", (chunk: Buffer) => {
+      chunk.toString().split("\n").filter(Boolean).forEach((l) => output.push(`[STDERR] ${l}`));
+    });
+    proc.on("close", () => {
+      lines.push(...output);
+      lines.push("[DONE] ID generation complete.");
+      resolve(lines);
+    });
+  });
 }
 
 async function fetchBizDirectoryLines(moduleId: number, target: string): Promise<string[]> {
@@ -2311,6 +2337,8 @@ async function runRealLookup(
       lines = await fetchAreaCodeLines(moduleId, target);
     } else if (moduleId === 25) {
       lines = await fetchBizDirectoryLines(moduleId, target);
+    } else if (moduleId === 26) {
+      lines = await fetchIdGeneratorLines(moduleId, target);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
