@@ -38,6 +38,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   22: "ZIP LOOKUP",
   23: "ADDRESS LOOKUP",
   24: "AREA CODE",
+  25: "BIZ DIRECTORY",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -101,7 +102,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -736,6 +737,59 @@ async function fetchPeopleSearchLines(moduleId: number, target: string): Promise
   }
   if (results.length === 0) lines.push(`[RESULT] no public profiles found for this target`);
   lines.push(`[DONE] People search complete.`);
+  return lines;
+}
+
+async function fetchBizDirectoryLines(moduleId: number, target: string): Promise<string[]> {
+  const serpKey = process.env["SERPAPI_KEY"];
+  if (!serpKey) throw new Error("SERPAPI_KEY not set");
+
+  const q = target.trim();
+  const lines: string[] = [
+    `[MODULE ${moduleId}] BIZ DIRECTORY — executing on: ${q}`,
+    `[QUERY] business directory search across YellowPages, Yelp, Whitepages, BBB`,
+  ];
+
+  type SerpResult = { title?: string; link?: string; snippet?: string };
+
+  const SOURCES: Array<{ label: string; site: string }> = [
+    { label: "YellowPages", site: "yellowpages.com" },
+    { label: "Yelp", site: "yelp.com" },
+    { label: "Whitepages", site: "whitepages.com" },
+    { label: "BBB", site: "bbb.org" },
+  ];
+
+  const fetches = SOURCES.map(async ({ label, site }) => {
+    const encoded = encodeURIComponent(`site:${site} "${q}"`);
+    const res = await fetch(
+      `https://serpapi.com/search.json?q=${encoded}&num=5&api_key=${serpKey}`,
+      { headers: { "User-Agent": "swept-sentinel-osint" } },
+    );
+    if (!res.ok) return { label, results: [] as SerpResult[] };
+    const data = (await res.json()) as { organic_results?: SerpResult[] };
+    return { label, results: data.organic_results ?? [] };
+  });
+
+  const results = await Promise.all(fetches);
+  let totalHits = 0;
+  for (const { label, results: hits } of results) {
+    if (!hits.length) {
+      lines.push(`[${label}] no listings found`);
+      continue;
+    }
+    totalHits += hits.length;
+    lines.push(`[${label}] ${hits.length} listing${hits.length !== 1 ? "s" : ""} found`);
+    for (const r of hits.slice(0, 3)) {
+      lines.push(`  [LISTING] ${r.title ?? "untitled"}`);
+      if (r.link) lines.push(`    url: ${r.link}`);
+      if (r.snippet) lines.push(`    ${r.snippet.slice(0, 160)}`);
+    }
+  }
+  lines.push(`[RESULT] total directory hits: ${totalHits}`);
+  if (totalHits === 0) {
+    lines.push(`[RESULT] no business listings found — try a business name, address, or phone number`);
+  }
+  lines.push(`[DONE] Business directory search complete.`);
   return lines;
 }
 
@@ -2255,6 +2309,8 @@ async function runRealLookup(
       lines = await fetchAddressLookupLines(moduleId, target);
     } else if (moduleId === 24) {
       lines = await fetchAreaCodeLines(moduleId, target);
+    } else if (moduleId === 25) {
+      lines = await fetchBizDirectoryLines(moduleId, target);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
