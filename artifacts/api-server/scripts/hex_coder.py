@@ -1,88 +1,57 @@
-"""Hex Coder — Module 105. Usage: hex_coder.py "enc:Hello" or "dec:48656c6c6f" or "dump:text" """
+"""Hex Coder — Module 105. Usage: hex_coder.py "text" or hex_coder.py "dec:HEXSTRING" """
 import sys, binascii
-
-def hexdump(data: bytes, width: int = 16) -> str:
-    lines = []
-    for i in range(0, len(data), width):
-        chunk = data[i:i+width]
-        hex_part = " ".join(f"{b:02x}" for b in chunk)
-        ascii_part = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
-        lines.append(f"  {i:08x}  {hex_part:<{width*3}}  |{ascii_part}|")
-    return "\n".join(lines)
 
 def main():
     print("[MODULE 105] HEX CODER")
-    print("[SOURCE]     Python stdlib binascii — hex encode/decode/dump")
+    print("[SOURCE]     Python binascii stdlib — hex encode/decode + formatting")
     print()
     raw = (sys.argv[1].strip() if len(sys.argv) > 1 else "").strip()
-    if not raw or raw == "help":
-        print("[MODES]")
-        print("  enc:TEXT      → encode text to hex")
-        print("  dec:HEXSTR    → decode hex to text")
-        print("  dump:TEXT     → hexdump of text (Wireshark-style)")
-        print("  b64:HEXSTR    → convert hex to base64")
-        print("  rev:HEXSTR    → reverse byte order of hex string")
-        print("  xor:KEY:HEX   → XOR hex bytes with key")
+    if not raw:
+        print("[USAGE]  hex_coder.py \"text to encode\"")
+        print("         hex_coder.py \"dec:48656c6c6f\"")
         sys.exit(0)
 
-    if ":" in raw:
-        mode, _, data = raw.partition(":")
-        mode = mode.strip().lower()
+    if raw.lower().startswith("dec:"):
+        hex_str = raw[4:].replace(" ", "").replace("0x", "").replace(":", "").replace("-","")
+        print(f"[MODE]   Hex decode")
+        print(f"[INPUT]  {hex_str[:80]}")
+        print()
+        if len(hex_str) % 2 != 0:
+            hex_str = "0" + hex_str
+        try:
+            decoded = bytes.fromhex(hex_str)
+            print(f"[BYTES]  {len(decoded)}")
+            try:
+                text = decoded.decode("utf-8")
+                print(f"[UTF-8]  {text}")
+            except Exception:
+                print(f"[NOTE]   Not valid UTF-8")
+            print(f"[DECIMAL] {list(decoded[:20])}")
+        except Exception as e:
+            print(f"[ERROR]  {e}")
     else:
-        mode = "enc"
-        data = raw
-
-    print(f"[MODE]   {mode}")
-    print()
-
-    try:
-        if mode == "enc":
-            encoded = data.encode().hex()
-            print(f"[HEX]    {encoded}")
-            print(f"[UPPER]  {encoded.upper()}")
-            print(f"[SPACED] {' '.join(encoded[i:i+2] for i in range(0, len(encoded), 2))}")
-            print(f"[BYTES]  {len(data)} bytes  →  {len(encoded)} hex chars")
-        elif mode == "dec":
-            clean = data.replace(" ","").replace("0x","").replace("\\x","")
-            raw_bytes = bytes.fromhex(clean)
-            decoded = raw_bytes.decode("utf-8", errors="replace")
-            print(f"[DECODED]  {decoded}")
-            print(f"[BYTES]    {len(raw_bytes)}")
-        elif mode == "dump":
-            raw_bytes = data.encode()
-            print(f"[INPUT]  {len(raw_bytes)} bytes")
-            print()
-            print(hexdump(raw_bytes))
-        elif mode == "b64":
-            import base64
-            clean = data.replace(" ","").replace("0x","")
-            raw_bytes = bytes.fromhex(clean)
-            print(f"[BASE64]  {base64.b64encode(raw_bytes).decode()}")
-        elif mode == "rev":
-            clean = data.replace(" ","").replace("0x","")
-            raw_bytes = bytes.fromhex(clean)
-            rev = raw_bytes[::-1]
-            print(f"[REVERSED HEX]  {rev.hex()}")
-            print(f"[AS TEXT]       {rev.decode('utf-8', errors='replace')}")
-        elif mode == "xor":
-            # xor:KEY:HEXDATA
-            parts = data.split(":", 1)
-            if len(parts) < 2:
-                print("[ERROR] Format: xor:KEY:HEXDATA")
-                sys.exit(1)
-            key_raw, hex_data = parts[0], parts[1]
-            key_bytes = key_raw.encode()
-            data_bytes = bytes.fromhex(hex_data.replace(" ",""))
-            result = bytes(b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(data_bytes))
-            print(f"[KEY]     {key_raw!r}  ({len(key_bytes)} bytes)")
-            print(f"[XOR HEX] {result.hex()}")
-            print(f"[XOR TXT] {result.decode('utf-8', errors='replace')}")
-        else:
-            print(f"[ERROR] Unknown mode '{mode}'")
-            sys.exit(1)
-    except Exception as e:
-        print(f"[ERROR] {e}")
-        sys.exit(1)
+        text = raw
+        data = text.encode("utf-8")
+        print(f"[MODE]   Hex encode")
+        print(f"[INPUT]  {text[:80]}")
+        print(f"[BYTES]  {len(data)}")
+        print()
+        hex_plain   = data.hex()
+        hex_upper   = data.hex().upper()
+        hex_spaced  = " ".join(f"{b:02x}" for b in data)
+        hex_0x      = " ".join(f"0x{b:02x}" for b in data)
+        hex_cformat = ", ".join(f"0x{b:02X}" for b in data)
+        print(f"[LOWERCASE]  {hex_plain}")
+        print(f"[UPPERCASE]  {hex_upper}")
+        print(f"[SPACED]     {hex_spaced}")
+        print(f"[0x PREFIX]  {hex_0x[:80]}{'...' if len(hex_0x)>80 else ''}")
+        print(f"[C FORMAT]   {hex_cformat[:80]}{'...' if len(hex_cformat)>80 else ''}")
+        print()
+        print(f"[DECIMAL VALUES]  {list(data[:20])}{'...' if len(data)>20 else ''}")
+        print(f"[OCTAL]           {''.join(f'{b:03o} ' for b in data[:20]).strip()}{'...' if len(data)>20 else ''}")
+        print(f"[BINARY (first8)] {'  '.join(f'{b:08b}' for b in data[:8])}{'...' if len(data)>8 else ''}")
+        print()
+        print(f"[DECODE CMD]  hex_coder.py \"dec:{hex_plain}\"")
 
     print()
     print("[DONE] Hex operation complete.")

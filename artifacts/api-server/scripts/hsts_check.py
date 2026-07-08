@@ -1,139 +1,138 @@
 """HSTS Check — Module 68. Usage: hsts_check.py "domain.com" """
-import sys, http.client, ssl, urllib.request, json, urllib.parse
+import sys, urllib.request, urllib.error, json
 
-def doh(name: str, rtype: str):
-    url = f"https://cloudflare-dns.com/dns-query?name={name}&type={rtype}"
-    r = urllib.request.Request(url, headers={"Accept": "application/dns-json", "User-Agent": "SentinelOSINT/1.0"})
-    with urllib.request.urlopen(r, timeout=8) as resp:
-        return json.load(resp)
-
-def get_hsts(domain: str, port: int = 443):
-    ssl_ctx = ssl.create_default_context()
-    ssl_ctx.check_hostname = False
-    ssl_ctx.verify_mode = ssl.CERT_NONE
-    conn = http.client.HTTPSConnection(domain, port=port, timeout=6, context=ssl_ctx)
-    conn.request("HEAD", "/", headers={"User-Agent": "SentinelOSINT/1.0"})
-    resp = conn.getresponse()
-    hsts  = resp.getheader("Strict-Transport-Security", "")
-    redir = resp.getheader("Location", "")
-    status = resp.status
-    conn.close()
-    return status, hsts, redir
-
-def parse_hsts(hsts: str) -> dict:
-    result = {"max_age": None, "include_subdomains": False, "preload": False}
-    for part in hsts.split(";"):
-        part = part.strip().lower()
-        if part.startswith("max-age="):
-            try:
-                result["max_age"] = int(part.split("=",1)[1].strip())
-            except Exception:
-                pass
-        elif part == "includesubdomains":
-            result["include_subdomains"] = True
-        elif part == "preload":
-            result["preload"] = True
-    return result
-
-def format_duration(seconds: int) -> str:
-    if seconds >= 31536000:
-        years = seconds / 31536000
-        return f"{years:.1f} year(s)"
-    if seconds >= 2592000:
-        return f"{seconds // 2592000} month(s)"
-    if seconds >= 86400:
-        return f"{seconds // 86400} day(s)"
-    return f"{seconds}s"
+HSTS_PRELOAD_CHECK_URL = "https://hstspreload.org/api/v2/status?domain="
 
 def main():
     print("[MODULE 068] HSTS CHECK")
-    print("[SOURCE]     Direct HTTPS request + Cloudflare DoH — HSTS header + preload analysis")
+    print("[SOURCE]     Direct HTTPS + hstspreload.org API — HTTP Strict Transport Security analysis")
     print()
-    raw = (sys.argv[1].strip() if len(sys.argv) > 1 else "").strip().lower()
+    raw = (sys.argv[1].strip() if len(sys.argv) > 1 else "").strip()
     if not raw:
         print("[ERROR] No domain supplied.")
         sys.exit(1)
 
-    domain = raw.lstrip("https://").lstrip("http://").split("/")[0]
+    domain = raw.lower().lstrip("https://").lstrip("http://").split("/")[0]
+    url    = f"https://{domain}"
     print(f"[TARGET]  {domain}")
     print()
 
-    # Check HTTP redirect
-    print("[STEP 1] HTTP → HTTPS redirect check...")
+    # Fetch HTTPS response
+    hsts_header = ""
     try:
-        conn = http.client.HTTPConnection(domain, timeout=5)
-        conn.request("HEAD", "/", headers={"User-Agent": "SentinelOSINT/1.0"})
-        resp = conn.getresponse()
-        http_status = resp.status
-        http_loc    = resp.getheader("Location", "")
-        conn.close()
-        if http_status in (301, 302, 307, 308) and "https" in http_loc.lower():
-            print(f"  HTTP {http_status} → {http_loc[:60]}  ✓ redirects to HTTPS")
-        elif http_status in (301, 302, 307, 308):
-            print(f"  HTTP {http_status} → {http_loc[:60]}  ⚠ redirects but not to HTTPS!")
-        else:
-            print(f"  HTTP {http_status}  ✗ no HTTPS redirect")
+        req = urllib.request.Request(url, headers={"User-Agent": "SentinelOSINT/1.0"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            hsts_header = resp.headers.get("Strict-Transport-Security", "")
+            status = resp.status
+    except urllib.error.HTTPError as e:
+        hsts_header = e.headers.get("Strict-Transport-Security", "") if e.headers else ""
+        status = e.code
     except Exception as e:
-        print(f"  HTTP connection failed: {e}")
+        print(f"[ERROR fetching HTTPS] {e}")
+        status = 0
 
-    # Check HTTPS HSTS header
+    print(f"[HTTPS STATUS]  {status}")
     print()
-    print("[STEP 2] HTTPS HSTS header...")
-    try:
-        status, hsts, redir = get_hsts(domain)
-        print(f"  HTTPS status: {status}")
-        if hsts:
-            print(f"  HSTS header: {hsts}")
-            parsed = parse_hsts(hsts)
-            max_age = parsed["max_age"]
-            print()
-            print(f"  Max-Age:           {max_age}s  ({format_duration(max_age) if max_age else '?'})")
-            print(f"  includeSubDomains: {'✓' if parsed['include_subdomains'] else '✗'}")
-            print(f"  preload:           {'✓' if parsed['preload'] else '✗'}")
 
-            # Grade
-            print()
-            if max_age is None:
-                print("  [WARN] Could not parse max-age")
-            elif max_age < 300:
-                print("  [WARN] max-age too short — HSTS effectively disabled")
-            elif max_age < 2592000:
-                print("  [WARN] max-age < 30 days — recommend at least 31536000 (1 year)")
-            elif max_age < 31536000:
-                print("  [OK]   max-age acceptable but 1 year recommended for preload")
-            else:
-                print("  [OK]   max-age ≥ 1 year — good")
+    if hsts_header:
+        print(f"[HSTS HEADER]  ✓  Present")
+        print(f"  {hsts_header}")
+        print()
 
-            if not parsed["include_subdomains"]:
-                print("  [WARN] includeSubDomains missing — subdomains not protected by HSTS")
-            if not parsed["preload"]:
-                print("  [INFO] preload not set — domain cannot be added to HSTS preload list")
-            elif max_age and max_age >= 31536000 and parsed["include_subdomains"]:
-                print("  [OK]   Meets preload requirements")
+        # Parse
+        parts  = [p.strip().lower() for p in hsts_header.split(";")]
+        max_age     = 0
+        include_sub = False
+        preload_directive = False
+        for part in parts:
+            if part.startswith("max-age"):
+                try:
+                    max_age = int(part.split("=")[1].strip())
+                except Exception:
+                    pass
+            if "includesubdomains" in part:
+                include_sub = True
+            if "preload" in part:
+                preload_directive = True
+
+        days = max_age // 86400
+        print(f"  max-age:           {max_age}s  ({days} days)")
+        print(f"  includeSubDomains: {'✓' if include_sub else '✗'}")
+        print(f"  preload directive: {'✓' if preload_directive else '✗'}")
+        print()
+
+        # Evaluation
+        print("[ANALYSIS]")
+        if max_age < 300:
+            print("  [WARN]  Very short max-age — HSTS barely effective")
+        elif max_age < 2592000:
+            print("  [WARN]  max-age < 30 days — increase to ≥1 year recommended")
+        elif max_age >= 31536000:
+            print("  [OK]    max-age ≥ 1 year — good")
         else:
-            print("  ✗ No HSTS header — HTTPS-capable but not enforcing it!")
-    except Exception as e:
-        print(f"  HTTPS connection failed: {e}")
+            print(f"  [OK]    max-age reasonable ({days} days)")
 
-    # Preload status check
+        if not include_sub:
+            print("  [INFO]  No includeSubDomains — subdomains not protected")
+        if not preload_directive:
+            print("  [INFO]  No preload directive — not eligible for browser preload list")
+        else:
+            print("  [OK]    preload directive present — eligible for preload submission")
+
+        # Check preload list status
+        try:
+            r = urllib.request.Request(HSTS_PRELOAD_CHECK_URL + domain,
+                                       headers={"User-Agent": "SentinelOSINT/1.0"})
+            with urllib.request.urlopen(r, timeout=6) as resp:
+                pdata = json.load(resp)
+            pstatus = pdata.get("status","?")
+            print(f"  Preload list:  {pstatus}")
+            if pdata.get("issues"):
+                for issue in pdata["issues"][:3]:
+                    print(f"    Issue: {issue.get('summary','?')}")
+        except Exception:
+            pass
+
+        # Preload eligibility check
+        eligible = max_age >= 31536000 and include_sub and preload_directive
+        print()
+        print(f"[PRELOAD ELIGIBLE]  {'✓ Yes' if eligible else '✗ No'}")
+        if not eligible:
+            reqs = []
+            if max_age < 31536000: reqs.append("max-age must be ≥ 31536000 (1 year)")
+            if not include_sub:    reqs.append("includeSubDomains required")
+            if not preload_directive: reqs.append("preload directive required")
+            for r in reqs:
+                print(f"  Missing: {r}")
+
+    else:
+        print("[HSTS HEADER]  ✗  Not present")
+        print()
+        print("[RISK]  Without HSTS, browsers may connect over HTTP — MITM risk")
+        print()
+        print("[RECOMMENDED HEADER]")
+        print('  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload')
+
+    # Check HTTP → HTTPS redirect
     print()
-    print("[STEP 3] Preload list check...")
+    print("[HTTP REDIRECT CHECK]")
+    http_url = f"http://{domain}"
     try:
-        data = urllib.request.urlopen(
-            f"https://hstspreload.org/api/v2/status?domain={domain}", timeout=6
-        ).read().decode()
-        status_data = json.loads(data)
-        state = status_data.get("status", "unknown")
-        print(f"  Preload status: {state}")
-        if state == "preloaded":
-            print("  ✓ Domain is on the HSTS preload list")
-        elif state == "pending":
-            print("  ⌛ Pending inclusion in preload list")
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+        opener = urllib.request.build_opener(NoRedirect)
+        req = urllib.request.Request(http_url, headers={"User-Agent": "SentinelOSINT/1.0"})
+        with opener.open(req, timeout=6) as resp:
+            print(f"  HTTP returns {resp.status} — no redirect to HTTPS!")
+    except urllib.error.HTTPError as e:
+        loc = e.headers.get("Location", "") if e.headers else ""
+        if loc.startswith("https://"):
+            print(f"  ✓ HTTP {e.code} → {loc[:60]}")
         else:
-            print("  ✗ Not on preload list")
-            print(f"    Submit at: https://hstspreload.org/?domain={domain}")
+            print(f"  HTTP {e.code} redirects to: {loc[:60]}")
     except Exception as e:
-        print(f"  Preload check failed: {e}")
+        print(f"  Could not check: {e}")
 
     print()
     print("[DONE] HSTS check complete.")

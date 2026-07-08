@@ -1,1 +1,2 @@
 - [Free OSINT/network APIs reachability](free-osint-apis.md) — which no-key public APIs work vs. are DNS-blocked in this Replit sandbox network.
+- [Swept Sentinel module status](swept-sentinel-modules.md) — 128 real modules wired, 102 simulated; all dispatch cases in sentinel.ts.

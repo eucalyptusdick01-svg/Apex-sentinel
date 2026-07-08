@@ -277,7 +277,38 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 51, 52, 54, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 230]);
+const REAL_LOOKUP_MODULES = new Set([
+  // NETWORK (1-30)
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+  21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+  // SOCIAL (31-50) — real free APIs
+  31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
+  // 43-50: Twitter/LinkedIn/Instagram/TikTok/Twitch/YouTube/Telegram/Snapchat — paid APIs, simulated
+  // RECON (51-100)
+  51, 52, 54,          // CORS, CSP, REST PROBE
+  55, 56, 57, 58, 59,  // DNSSEC, CAA, SPF, DKIM, MX DEEP DIVE
+  61, 62, 63, 64,      // NS, SOA, TXT, PTR
+  65, 66, 67, 68, 69, 70, // REDIRECT CHAIN, COOKIE AUDIT, HEADER GRADE, HSTS, HTTP METHODS, HTTP2
+  71,                  // VIN CHECK
+  72,                  // CLICKJACK
+  82, 86, 87, 90,      // DOMAIN AGE, EMAIL VALIDATE, IPINFO FULL, TRACEROUTE SIM
+  92, 93, 94, 95, 96, 97, 98, 99, 100, // SSL, WAYBACK, HTTP FINGERPRINT, REVERSE IP, SUBDOMAIN, ADMIN, ROBOTS, API PROBE, CERT HISTORY
+  // EXPLOIT (101-150)
+  101, 102, 103,       // ENTROPY, STRING EXTRACT, FILE IDENT
+  104, 105, 106, 107, 108, 109, 110, 111, // BASE64, HEX, URL, HTML, ROT13, CAESAR, VIGENERE, MORSE
+  112,                 // JWT DECODE
+  115,                 // WORDLIST GEN
+  118,                 // BANNER GRAB
+  // INTEL (151-200)
+  151, 152, 153, 154, 155, 156, // CVE, MAC, SHODAN, THREAT INTEL, TOR, URL SCAN
+  157, 158, 159, 160, 161,      // AES, RSA, PASSPHRASE, HMAC, HASH COMPARE
+  162, 163, 165, 166,           // CIDR CALC, IP CONVERT, PORT REF, HTTP STATUS
+  169, 170,                     // IOC EXTRACT, TYPOSQUAT
+  // ADVANCED (201-230)
+  201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215,
+  216, 220, 221, 222, 225, 227, // JSON FORMAT, DATE CALC, UNIT CONVERT, COLOR CONVERT, NUM BASE, UNICODE INFO
+  230,
+]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -2687,14 +2718,78 @@ async function runRealLookup(
       lines = await fetchDlEncoderLines(moduleId, target);
     } else if (moduleId === 30) {
       lines = await fetchChecksumGenLines(moduleId, target);
+    } else if (moduleId === 31) {
+      lines = await runPyScript("reddit_user.py", target, [`[MODULE 31] REDDIT USER — reddit.com public JSON API`]);
+    } else if (moduleId === 32) {
+      lines = await runPyScript("hn_user.py", target, [`[MODULE 32] HACKERNEWS USER — hacker-news.firebaseio.com API`]);
+    } else if (moduleId === 33) {
+      lines = await runPyScript("gravatar.py", target, [`[MODULE 33] GRAVATAR — global avatar lookup by email or hash`, `[INFO] format: email@example.com  or  hash:MD5HASH`]);
+    } else if (moduleId === 34) {
+      lines = await runPyScript("gitlab_user.py", target, [`[MODULE 34] GITLAB USER — gitlab.com public API v4`]);
+    } else if (moduleId === 35) {
+      lines = await runPyScript("mastodon_lookup.py", target, [`[MODULE 35] MASTODON USER — Mastodon public REST API`, `[INFO] format: user@instance.social  or  username (defaults to mastodon.social)`]);
+    } else if (moduleId === 36) {
+      lines = await runPyScript("devto_user.py", target, [`[MODULE 36] DEV.TO USER — dev.to public API`]);
+    } else if (moduleId === 37) {
+      lines = await runPyScript("discord_id.py", target, [`[MODULE 37] DISCORD SNOWFLAKE — decode Discord user/message/guild IDs`, `[INFO] format: 175928847299117063`]);
+    } else if (moduleId === 38) {
+      lines = await runPyScript("pypi_lookup.py", target, [`[MODULE 38] PYPI LOOKUP — pypi.org package/user lookup`, `[INFO] format: requests  or  user:USERNAME`]);
+    } else if (moduleId === 39) {
+      lines = await runPyScript("npm_user.py", target, [`[MODULE 39] NPM USER/PACKAGE — registry.npmjs.org`, `[INFO] format: username  or  pkg:package-name`]);
+    } else if (moduleId === 40) {
+      lines = await runPyScript("docker_hub.py", target, [`[MODULE 40] DOCKER HUB — hub.docker.com public API`, `[INFO] format: username  or  image:nginx`]);
+    } else if (moduleId === 41) {
+      lines = await runPyScript("keybase_lookup.py", target, [`[MODULE 41] KEYBASE — keybase.io public API`]);
+    } else if (moduleId === 42) {
+      lines = await runPyScript("stackoverflow_user.py", target, [`[MODULE 42] STACK OVERFLOW — api.stackexchange.com`, `[INFO] format: username  or  id:12345`]);
     } else if (moduleId === 51) {
       lines = await fetchCorsCheckLines(moduleId, target);
     } else if (moduleId === 52) {
       lines = await fetchCspAnalyzeLines(moduleId, target);
     } else if (moduleId === 54) {
       lines = await fetchRestProbeLines(moduleId, target);
+    } else if (moduleId === 55) {
+      lines = await runPyScript("dnssec_check.py", target, [`[MODULE 55] DNSSEC CHECK — Cloudflare DoH DNSSEC validation`]);
+    } else if (moduleId === 56) {
+      lines = await runPyScript("caa_record.py", target, [`[MODULE 56] CAA RECORD — Certificate Authority Authorization`]);
+    } else if (moduleId === 57) {
+      lines = await runPyScript("spf_check.py", target, [`[MODULE 57] SPF CHECK — Sender Policy Framework analysis`]);
+    } else if (moduleId === 58) {
+      lines = await runPyScript("dkim_check.py", target, [`[MODULE 58] DKIM CHECK — DomainKeys Identified Mail`, `[INFO] format: domain.com  or  selector:google:domain.com`]);
+    } else if (moduleId === 59) {
+      lines = await runPyScript("mx_deepdive.py", target, [`[MODULE 59] MX DEEP DIVE — MX records + mail provider + SMTP banner`]);
+    } else if (moduleId === 61) {
+      lines = await runPyScript("ns_lookup.py", target, [`[MODULE 61] NS LOOKUP — nameserver enumeration + provider identification`]);
+    } else if (moduleId === 62) {
+      lines = await runPyScript("soa_record.py", target, [`[MODULE 62] SOA RECORD — Start of Authority analysis`]);
+    } else if (moduleId === 63) {
+      lines = await runPyScript("txt_records.py", target, [`[MODULE 63] TXT RECORDS — all TXT records + classification`]);
+    } else if (moduleId === 64) {
+      lines = await runPyScript("ptr_lookup.py", target, [`[MODULE 64] PTR LOOKUP — reverse DNS lookup`, `[INFO] format: 1.2.3.4  or  domain.com`]);
+    } else if (moduleId === 65) {
+      lines = await runPyScript("redirect_chain.py", target, [`[MODULE 65] REDIRECT CHAIN — follow all HTTP redirects`]);
+    } else if (moduleId === 66) {
+      lines = await runPyScript("cookie_audit.py", target, [`[MODULE 66] COOKIE AUDIT — security attribute analysis`]);
+    } else if (moduleId === 67) {
+      lines = await runPyScript("header_grade.py", target, [`[MODULE 67] HEADER GRADE — security header scoring`]);
+    } else if (moduleId === 68) {
+      lines = await runPyScript("hsts_check.py", target, [`[MODULE 68] HSTS CHECK — HTTP Strict Transport Security`]);
+    } else if (moduleId === 69) {
+      lines = await runPyScript("http_methods.py", target, [`[MODULE 69] HTTP METHODS — allowed method probe`]);
+    } else if (moduleId === 70) {
+      lines = await runPyScript("http2_check.py", target, [`[MODULE 70] HTTP/2 CHECK — ALPN + h2c detection`]);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
+    } else if (moduleId === 72) {
+      lines = await runPyScript("clickjack_test.py", target, [`[MODULE 72] CLICKJACKING TEST — X-Frame-Options + CSP frame-ancestors`]);
+    } else if (moduleId === 82) {
+      lines = await runPyScript("domain_age.py", target, [`[MODULE 82] DOMAIN AGE — RDAP registration date + risk analysis`]);
+    } else if (moduleId === 86) {
+      lines = await runPyScript("email_validate.py", target, [`[MODULE 86] EMAIL VALIDATE — syntax + MX + SMTP RCPT probe`]);
+    } else if (moduleId === 87) {
+      lines = await runPyScript("ipinfo_full.py", target, [`[MODULE 87] IPINFO FULL — ipinfo.io geolocation + ASN + org`]);
+    } else if (moduleId === 90) {
+      lines = await runPyScript("traceroute_sim.py", target, [`[MODULE 90] TRACEROUTE — TTL probe + hop geolocation`]);
     } else if (moduleId === 92) {
       lines = await fetchSslCertLines(moduleId, target);
     } else if (moduleId === 93) {
@@ -2719,6 +2814,28 @@ async function runRealLookup(
       lines = await fetchStringExtractLines(moduleId, target);
     } else if (moduleId === 103) {
       lines = await fetchFileIdentLines(moduleId, target);
+    } else if (moduleId === 104) {
+      lines = await runPyScript("base64_coder.py", target, [`[MODULE 104] BASE64 CODER — encode/decode standard/URL-safe/base32`, `[INFO] format: text  or  dec:BASE64  or  url:text  or  urldec:BASE64URL`]);
+    } else if (moduleId === 105) {
+      lines = await runPyScript("hex_coder.py", target, [`[MODULE 105] HEX CODER — hex encode/decode + formatting`, `[INFO] format: text  or  dec:HEXSTRING`]);
+    } else if (moduleId === 106) {
+      lines = await runPyScript("url_coder.py", target, [`[MODULE 106] URL CODER — URL encode/decode + HTML entity analysis`, `[INFO] format: text  or  dec:URL%20ENCODED`]);
+    } else if (moduleId === 107) {
+      lines = await runPyScript("html_coder.py", target, [`[MODULE 107] HTML CODER — HTML entity encode/decode + XSS detection`, `[INFO] format: <script>text</script>  or  dec:&lt;b&gt;text&lt;/b&gt;`]);
+    } else if (moduleId === 108) {
+      lines = await runPyScript("rot13.py", target, [`[MODULE 108] ROT13 — ROT-13/18/47 + XOR variants`, `[INFO] format: text  or  rot47:text  or  xor13:text`]);
+    } else if (moduleId === 109) {
+      lines = await runPyScript("caesar_cipher.py", target, [`[MODULE 109] CAESAR CIPHER — shift cipher + brute-force`, `[INFO] format: enc:3:Hello  or  dec:13:Uryyb  or  brute:KHOOR`]);
+    } else if (moduleId === 110) {
+      lines = await runPyScript("vigenere.py", target, [`[MODULE 110] VIGENÈRE CIPHER — polyalphabetic + frequency crack`, `[INFO] format: enc:KEY:text  or  dec:KEY:text  or  crack:ciphertext`]);
+    } else if (moduleId === 111) {
+      lines = await runPyScript("morse_code.py", target, [`[MODULE 111] MORSE CODE — encode/decode + NATO phonetic`, `[INFO] format: Hello World  or  dec:.... . .-.. .-.. ---`]);
+    } else if (moduleId === 112) {
+      lines = await runPyScript("jwt_decode.py", target, [`[MODULE 112] JWT DECODE — header/payload decode + security analysis`, `[INFO] format: eyJ...token  or  verify:SECRET:TOKEN`]);
+    } else if (moduleId === 115) {
+      lines = await runPyScript("wordlist_gen.py", target, [`[MODULE 115] WORDLIST GENERATOR — mutation-based wordlist`, `[INFO] format: password  or  leet:word  or  pin:4  or  combo:admin,2024,!`]);
+    } else if (moduleId === 118) {
+      lines = await runPyScript("banner_grab.py", target, [`[MODULE 118] BANNER GRAB — TCP service banner retrieval`, `[INFO] format: host  or  host:port`]);
     } else if (moduleId === 151) {
       lines = await fetchCveLookupLines(moduleId, target);
     } else if (moduleId === 152) {
@@ -2741,6 +2858,18 @@ async function runRealLookup(
       lines = await fetchHmacCalcLines(moduleId, target);
     } else if (moduleId === 161) {
       lines = await fetchHashCompareLines(moduleId, target);
+    } else if (moduleId === 162) {
+      lines = await runPyScript("cidr_calc.py", target, [`[MODULE 162] CIDR CALCULATOR — network/subnet math`, `[INFO] format: 192.168.1.0/24  or  10.0.0.1/8`]);
+    } else if (moduleId === 163) {
+      lines = await runPyScript("ip_convert.py", target, [`[MODULE 163] IP CONVERTER — decimal/hex/binary/integer representations`, `[INFO] format: 1.2.3.4  or  int:16909060  or  hex:0x01020304  or  bin:...`]);
+    } else if (moduleId === 165) {
+      lines = await runPyScript("port_reference.py", target, [`[MODULE 165] PORT REFERENCE — IANA port database lookup`, `[INFO] format: 80  or  ssh  or  all`]);
+    } else if (moduleId === 166) {
+      lines = await runPyScript("http_status.py", target, [`[MODULE 166] HTTP STATUS CODES — RFC status code reference`, `[INFO] format: 404  or  5xx  or  redirect  or  all`]);
+    } else if (moduleId === 169) {
+      lines = await runPyScript("ioc_extract.py", target, [`[MODULE 169] IOC EXTRACTOR — extract IPs/domains/hashes/CVEs/ATT&CK IDs from text`, `[INFO] format: paste raw text with indicators`]);
+    } else if (moduleId === 170) {
+      lines = await runPyScript("typosquat.py", target, [`[MODULE 170] TYPOSQUAT — generate + DNS-check domain typosquatting candidates`, `[INFO] format: google.com`]);
     } else if (moduleId === 201) {
       lines = await fetchBgpRouteLines(moduleId, target);
     } else if (moduleId === 207) {
@@ -2771,6 +2900,18 @@ async function runRealLookup(
       lines = await fetchQrEncodeLines(moduleId, target);
     } else if (moduleId === 215) {
       lines = await fetchCodeStatsLines(moduleId, target);
+    } else if (moduleId === 216) {
+      lines = await runPyScript("json_format.py", target, [`[MODULE 216] JSON FORMAT — pretty-print, minify, validate, extract paths`, `[INFO] format: {"key":"val"}  or  min:JSON  or  get:.key:JSON  or  validate:JSON`]);
+    } else if (moduleId === 220) {
+      lines = await runPyScript("date_calc.py", target, [`[MODULE 220] DATE CALCULATOR — date math, business days, format conversion`, `[INFO] format: 2024-06-15  or  diff:DATE1:DATE2  or  add:90:DATE  or  today`]);
+    } else if (moduleId === 221) {
+      lines = await runPyScript("unit_convert.py", target, [`[MODULE 221] UNIT CONVERTER — length/weight/volume/speed/data/energy/temperature`, `[INFO] format: 100 km to miles  or  32 F to C  or  5 GB to MB`]);
+    } else if (moduleId === 222) {
+      lines = await runPyScript("color_convert.py", target, [`[MODULE 222] COLOR CONVERTER — HEX/RGB/HSL/HSV/CMYK + contrast ratio`, `[INFO] format: #FF5733  or  rgb:255,87,51  or  hsl:9,100,60  or  orange`]);
+    } else if (moduleId === 225) {
+      lines = await runPyScript("num_base.py", target, [`[MODULE 225] NUMBER BASE CONVERTER — decimal/hex/octal/binary/base-N`, `[INFO] format: 255  or  hex:FF  or  bin:11111111  or  fromto:16:10:FF`]);
+    } else if (moduleId === 227) {
+      lines = await runPyScript("unicode_info.py", target, [`[MODULE 227] UNICODE INFO — codepoint analysis, encodings, script detection`, `[INFO] format: A  or  hello  or  U+1F600  or  search:copyright`]);
     } else if (moduleId === 230) {
       lines = await fetchDmarcAnalyzeLines(moduleId, target);
     } else {
