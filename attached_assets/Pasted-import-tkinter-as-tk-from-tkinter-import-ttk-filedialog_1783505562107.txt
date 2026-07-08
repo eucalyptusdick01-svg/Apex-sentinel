@@ -1,0 +1,132 @@
+import tkinter as tk
+from tkinter import ttk, filedialog
+import hashlib
+import csv
+import os
+
+# -------------------
+# Checksum Function
+# -------------------
+def calculate_checksum(pan, expiry, service):
+    pan_clean = ''.join(ch for ch in pan if ch.isdigit())
+    expiry_clean = str(expiry).zfill(4)
+    service_clean = str(service).zfill(3)
+
+    # Step 5: Concatenate
+    data = pan_clean + expiry_clean + service_clean
+
+    # Step 6: Zero-pad to 32 chars
+    data32 = (data + "0"*32)[:32]
+
+    # Split halves
+    first_half = data32[:16]
+    second_half = data32[16:]
+
+    # Fake DES-like simulation
+    def des_sim(block, key):
+        return hashlib.sha256((block + key).encode()).hexdigest()
+
+    key = "EDUCATIONKEY1234"
+
+    step7 = des_sim(first_half, key)
+    step8 = ''.join(str((int(a, 16) ^ int(b, 16)) % 16) for a, b in zip(step7[:16], second_half[:16]))
+    step9 = des_sim(step8, key)
+    step10 = des_sim(step9, key)  # simulated decrypt
+    step11 = des_sim(step10, key)
+
+    # Step 12: extract digits
+    digits = ''.join(c for c in step11 if c.isdigit())
+    if len(digits) < 3:
+        digits = (digits + "000")[:3]
+
+    return digits[:3]
+
+# -------------------
+# Single Mode
+# -------------------
+def generate_single():
+    pan = pan_entry.get().strip()
+    expiry = expiry_entry.get().strip()
+    service = service_entry.get().strip()
+
+    if not pan or not expiry or not service:
+        result_label.config(text="Please fill in all fields.")
+        return
+
+    checksum = calculate_checksum(pan, expiry, service)
+    result_label.config(text=f"Checksum: {checksum}")
+
+# -------------------
+# Batch Mode
+# -------------------
+def generate_batch():
+    file_path = filedialog.askopenfilename(
+        title="Select CSV File",
+        filetypes=[("CSV Files", "*.csv")]
+    )
+    if not file_path:
+        return
+
+    output_rows = []
+
+    with open(file_path, newline="") as csvfile:
+        reader = csv.DictReader(csvfile)
+
+        required = {"pan", "expiry", "service"}
+        if not required.issubset(reader.fieldnames):
+            result_label.config(text="CSV must contain columns: pan, expiry, service")
+            return
+
+        for row in reader:
+            pan = row["pan"]
+            expiry = row["expiry"]
+            service = row["service"]
+            checksum = calculate_checksum(pan, expiry, service)
+
+            output_rows.append({
+                "pan": pan,
+                "expiry": expiry,
+                "service": service,
+                "checksum": checksum
+            })
+
+    # Save results
+    output_file = "output.csv"
+    with open(output_file, "w", newline="") as csvout:
+        writer = csv.DictWriter(csvout, fieldnames=["pan", "expiry", "service", "checksum"])
+        writer.writeheader()
+        writer.writerows(output_rows)
+
+    result_label.config(text=f"Batch completed! Saved as {os.path.abspath(output_file)}")
+
+# -------------------
+# GUI Setup
+# -------------------
+root = tk.Tk()
+root.title("Checksum Generator (Single + Batch Mode)")
+
+# Single inputs
+ttk.Label(root, text="PAN (digits):").grid(row=0, column=0, sticky="w")
+pan_entry = ttk.Entry(root, width=30)
+pan_entry.grid(row=0, column=1)
+
+ttk.Label(root, text="Expiry (MMYY):").grid(row=1, column=0, sticky="w")
+expiry_entry = ttk.Entry(root, width=30)
+expiry_entry.grid(row=1, column=1)
+
+ttk.Label(root, text="Service Code:").grid(row=2, column=0, sticky="w")
+service_entry = ttk.Entry(root, width=30)
+service_entry.grid(row=2, column=1)
+
+# Buttons
+generate_btn = ttk.Button(root, text="Generate Single Checksum", command=generate_single)
+generate_btn.grid(row=3, column=0, columnspan=2, pady=5)
+
+batch_btn = ttk.Button(root, text="Generate Batch from CSV", command=generate_batch)
+batch_btn.grid(row=4, column=0, columnspan=2, pady=5)
+
+# Result
+result_label = ttk.Label(root, text="", justify="left")
+result_label.grid(row=5, column=0, columnspan=2, pady=10)
+
+root.mainloop()

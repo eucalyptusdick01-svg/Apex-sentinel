@@ -16,10 +16,10 @@ SOUNDEX_MAP = {
     'm':'5','n':'5',
     'r':'6',
 }
-RESET_CHARS = set('aeiouy')
-SOFT_RESET  = set('wh')
+VOWELS = set('aeiouy')
 
 def soundex(name: str) -> str:
+    """American Soundex with strictRules=true: W and H do NOT reset lastcode."""
     name = name.strip().lower()
     if not name:
         return "0000"
@@ -29,17 +29,15 @@ def soundex(name: str) -> str:
     for ch in name:
         if not ch.isalpha():
             continue
-        code = SOUNDEX_MAP.get(ch, "")
-        if ch in RESET_CHARS:
+        if ch in VOWELS:
             lastcode = ""
-        elif ch in SOFT_RESET:
-            lastcode = ""
+        elif ch in ('w', 'h'):
+            pass  # strict mode: W/H are skipped, lastcode unchanged
         else:
+            code = SOUNDEX_MAP.get(ch, "")
             if code and code != lastcode:
                 result += code
                 lastcode = code
-            elif not code:
-                lastcode = ""
         if first:
             result = ch.upper()
             first = False
@@ -359,11 +357,14 @@ WA_DAY    = ['','A','B','C','D','E','F','G','H','Z','S','J',
              'K','L','M','N','W','P','Q','R','0','1','2','3',
              '4','5','6','7','8','9','T','U']
 
-WA_CHAR_VAL = {}
-for i, c in enumerate('0123456789'):
-    WA_CHAR_VAL[c] = i
-for i, c in enumerate('ABCDEFGHIJKLMNOPQRSTUVWXYZ'):
-    WA_CHAR_VAL[c] = i
+# ChecksumDigit_WA mapping — direct port from stevemorse.org/dl/dl.js
+WA_CHAR_VAL = {
+    '0':0,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,
+    '*':4,
+    'A':1,'B':2,'C':3,'D':4,'E':5,'F':6,'G':7,'H':8,'I':9,
+    'J':1,'K':2,'L':3,'M':4,'N':5,'O':6,'P':7,'Q':8,'R':9,
+    'S':2,'T':3,'U':4,'V':5,'W':6,'X':7,'Y':8,'Z':9,
+}
 
 def wa_checksum(s: str) -> int:
     total = 0
