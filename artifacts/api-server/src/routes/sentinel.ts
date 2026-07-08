@@ -44,6 +44,9 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   28: "ID STUDIO",
   29: "DL ENCODER",
   30: "CHECKSUM GEN",
+  51: "CORS CHECK",
+  52: "CSP ANALYZE",
+  54: "REST PROBE",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -60,6 +63,9 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   98: "ROBOTS SCAN",
   99: "API PROBE",
   100: "CERT HISTORY",
+  101: "ENTROPY CALC",
+  102: "STRING EXTRACT",
+  103: "FILE IDENT",
   131: "SQL MAP",
   151: "CVE LOOKUP",
   152: "MAC LOOKUP",
@@ -67,12 +73,26 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   154: "THREAT INTEL",
   155: "RIPE STAT",
   156: "DUCK INTEL",
+  157: "AES CIPHER",
+  158: "RSA KEYGEN",
+  159: "PASSPHRASE GEN",
+  160: "HMAC CALC",
+  161: "HASH COMPARE",
   201: "BGP ROUTE",
   207: "CDN ORIGIN",
   208: "TOR CHECK",
   209: "URL SCAN",
   210: "ARCHIVE DEPTH",
   211: "NPM AUDIT",
+  202: "REGEX TEST",
+  203: "CRON PARSER",
+  204: "TZ CONVERT",
+  205: "RAND DATA",
+  206: "PASS AUDIT",
+  212: "TOKEN COUNT",
+  213: "EVIDENCE HASH",
+  214: "QR ENCODE",
+  215: "CODE STATS",
   230: "DMARC ANALYZE",
 };
 
@@ -107,7 +127,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 51, 52, 54, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -768,6 +788,79 @@ async function fetchIdGeneratorLines(moduleId: number, target: string): Promise<
       resolve(lines);
     });
   });
+}
+
+function runPyScript(scriptName: string, target: string, header: string[]): Promise<string[]> {
+  const scriptPath = path.join(__dirname, "..", "scripts", scriptName);
+  const lines: string[] = [...header];
+  return new Promise((resolve) => {
+    const proc = spawn("python3", [scriptPath, target.trim() || "help"]);
+    const out: string[] = [];
+    proc.stdout.on("data", (chunk: Buffer) => chunk.toString().split("\n").filter(Boolean).forEach((l) => out.push(l)));
+    proc.stderr.on("data", (chunk: Buffer) => chunk.toString().split("\n").filter(Boolean).forEach((l) => out.push(`[STDERR] ${l}`)));
+    proc.on("close", () => { lines.push(...out); resolve(lines); });
+  });
+}
+
+async function fetchCorsCheckLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("cors_check.py", target, [`[MODULE ${moduleId}] CORS CHECKER — OPTIONS preflight + GET origin probe`]);
+}
+async function fetchCspAnalyzeLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("csp_analyze.py", target, [`[MODULE ${moduleId}] CSP ANALYZER — Content-Security-Policy header parser`]);
+}
+async function fetchRestProbeLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("rest_probe.py", target, [`[MODULE ${moduleId}] REST PROBE — HTTP request / response inspector`, `[INFO] format: URL  or  METHOD:URL  or  POST:URL:{"key":"val"}`]);
+}
+async function fetchEntropyCalcLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("entropy_calc.py", target, [`[MODULE ${moduleId}] ENTROPY CALCULATOR — Shannon entropy + byte distribution`, `[INFO] format: text  or  hex:deadbeef  or  base64:SGVs...`]);
+}
+async function fetchStringExtractLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("string_extract.py", target, [`[MODULE ${moduleId}] STRING EXTRACTOR — printable ASCII/UTF-16 string extraction`, `[INFO] format: hex:4d5a...  or  base64:TVo...  or  raw text`]);
+}
+async function fetchFileIdentLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("file_ident.py", target, [`[MODULE ${moduleId}] FILE IDENTIFIER — magic bytes + extension lookup`, `[INFO] format: hex:FFD8FF...  or  ext:.pdf  or  file:/path`]);
+}
+async function fetchAesCipherLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("aes_cipher.py", target, [`[MODULE ${moduleId}] AES CIPHER — AES-256-CBC encrypt/decrypt`, `[INFO] format: enc:password:plaintext  or  dec:password:BASE64CT  or  keygen:256`]);
+}
+async function fetchRsaKeygenLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("rsa_keygen.py", target, [`[MODULE ${moduleId}] RSA KEY GENERATOR — RSA-2048/4096 keypair`, `[INFO] format: 2048  or  4096  or  enc:PUB_B64:msg  or  dec:PRIV_B64:ct`]);
+}
+async function fetchPassphraseGenLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("passphrase_gen.py", target, [`[MODULE ${moduleId}] PASSPHRASE GENERATOR — EFF wordlist / cryptographic randomness`, `[INFO] format: 5  or  6:-  or  4:_:3 (words:sep:count)  or  pin:8  or  hex:32`]);
+}
+async function fetchHmacCalcLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("hmac_calc.py", target, [`[MODULE ${moduleId}] HMAC CALCULATOR — SHA256/512/SHA1/BLAKE2`, `[INFO] format: key:message  or  sha512:key:message  or  verify:key:message:expected`]);
+}
+async function fetchHashCompareLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("hash_compare.py", target, [`[MODULE ${moduleId}] HASH COMPARE — MD5/SHA1/SHA256/SHA512/BLAKE2/CRC32`, `[INFO] format: Hello World  or  verify:EXPECTED_HEX:value  or  hex:DEADBEEF  or  file:/path`]);
+}
+async function fetchRegexTestLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("regex_test.py", target, [`[MODULE ${moduleId}] REGEX TESTER — full Python re engine`, `[INFO] format: PATTERN::test_string  or  flags:i:PATTERN::input  or  sub:PAT:REPL:INPUT  or  list`]);
+}
+async function fetchCronParserLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("cron_parser.py", target, [`[MODULE ${moduleId}] CRON PARSER — expression explainer + next fire times`, `[INFO] format: */5 * * * *  or  0 9 * * MON-FRI  or  next:10:0 8 * * *`]);
+}
+async function fetchTzConvertLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("tz_convert.py", target, [`[MODULE ${moduleId}] TIMEZONE CONVERTER — IANA tz database`, `[INFO] format: now  or  now:US/Eastern  or  2024-06-15 14:30:US/Eastern:UTC  or  list`]);
+}
+async function fetchRandDataLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("rand_data.py", target, [`[MODULE ${moduleId}] RANDOM DATA GENERATOR — uuid/ip/email/name/card/hash/etc`, `[INFO] format: uuid  or  email:10  or  card:5  or  hex:32  or  all`]);
+}
+async function fetchPassAuditLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("pass_audit.py", target, [`[MODULE ${moduleId}] PASSWORD AUDITOR — entropy / patterns / crack time`, `[INFO] format: MyPassword123!  or  batch:pass1|pass2|pass3`]);
+}
+async function fetchTokenCountLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("token_count.py", target, [`[MODULE ${moduleId}] TOKEN COUNTER — GPT token estimator + readability`, `[INFO] format: your text here  or  model:gpt-4:text  or  cost:0.03:text`]);
+}
+async function fetchEvidenceHashLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("evidence_hash.py", target, [`[MODULE ${moduleId}] EVIDENCE HASHER — MD5/SHA1/SHA256/SHA512 chain of custody`, `[INFO] format: Hello World  or  file:/path  or  case:CaseID:analyst:Name:file:/path`]);
+}
+async function fetchQrEncodeLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("qr_encode.py", target, [`[MODULE ${moduleId}] QR ENCODER — ASCII terminal QR code`, `[INFO] format: https://example.com  or  wifi:SSID:WPA:pass  or  any text`]);
+}
+async function fetchCodeStatsLines(moduleId: number, target: string): Promise<string[]> {
+  return runPyScript("code_stats.py", target, [`[MODULE ${moduleId}] CODE STATISTICS — line counts + complexity`, `[INFO] format: file:/path/to/file.py  or  dir:/project  or  python:def foo(): pass`]);
 }
 
 async function fetchChecksumGenLines(moduleId: number, target: string): Promise<string[]> {
@@ -2444,6 +2537,12 @@ async function runRealLookup(
       lines = await fetchDlEncoderLines(moduleId, target);
     } else if (moduleId === 30) {
       lines = await fetchChecksumGenLines(moduleId, target);
+    } else if (moduleId === 51) {
+      lines = await fetchCorsCheckLines(moduleId, target);
+    } else if (moduleId === 52) {
+      lines = await fetchCspAnalyzeLines(moduleId, target);
+    } else if (moduleId === 54) {
+      lines = await fetchRestProbeLines(moduleId, target);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
@@ -2464,6 +2563,12 @@ async function runRealLookup(
       lines = await fetchApiProbeLines(moduleId, target);
     } else if (moduleId === 100) {
       lines = await fetchCertHistoryLines(moduleId, target);
+    } else if (moduleId === 101) {
+      lines = await fetchEntropyCalcLines(moduleId, target);
+    } else if (moduleId === 102) {
+      lines = await fetchStringExtractLines(moduleId, target);
+    } else if (moduleId === 103) {
+      lines = await fetchFileIdentLines(moduleId, target);
     } else if (moduleId === 151) {
       lines = await fetchCveLookupLines(moduleId, target);
     } else if (moduleId === 152) {
@@ -2476,6 +2581,16 @@ async function runRealLookup(
       lines = await fetchRipeStatLines(moduleId, target);
     } else if (moduleId === 156) {
       lines = await fetchDuckIntelLines(moduleId, target);
+    } else if (moduleId === 157) {
+      lines = await fetchAesCipherLines(moduleId, target);
+    } else if (moduleId === 158) {
+      lines = await fetchRsaKeygenLines(moduleId, target);
+    } else if (moduleId === 159) {
+      lines = await fetchPassphraseGenLines(moduleId, target);
+    } else if (moduleId === 160) {
+      lines = await fetchHmacCalcLines(moduleId, target);
+    } else if (moduleId === 161) {
+      lines = await fetchHashCompareLines(moduleId, target);
     } else if (moduleId === 201) {
       lines = await fetchBgpRouteLines(moduleId, target);
     } else if (moduleId === 207) {
@@ -2488,6 +2603,24 @@ async function runRealLookup(
       lines = await fetchArchiveDepthLines(moduleId, target);
     } else if (moduleId === 211) {
       lines = await fetchNpmAuditLines(moduleId, target);
+    } else if (moduleId === 202) {
+      lines = await fetchRegexTestLines(moduleId, target);
+    } else if (moduleId === 203) {
+      lines = await fetchCronParserLines(moduleId, target);
+    } else if (moduleId === 204) {
+      lines = await fetchTzConvertLines(moduleId, target);
+    } else if (moduleId === 205) {
+      lines = await fetchRandDataLines(moduleId, target);
+    } else if (moduleId === 206) {
+      lines = await fetchPassAuditLines(moduleId, target);
+    } else if (moduleId === 212) {
+      lines = await fetchTokenCountLines(moduleId, target);
+    } else if (moduleId === 213) {
+      lines = await fetchEvidenceHashLines(moduleId, target);
+    } else if (moduleId === 214) {
+      lines = await fetchQrEncodeLines(moduleId, target);
+    } else if (moduleId === 215) {
+      lines = await fetchCodeStatsLines(moduleId, target);
     } else if (moduleId === 230) {
       lines = await fetchDmarcAnalyzeLines(moduleId, target);
     } else {
