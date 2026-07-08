@@ -25,6 +25,8 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   10: "GEOLOCATE",
   11: "GITHUB LOOKUP",
   12: "USERNAME CHECK",
+  13: "NEWS SEARCH",
+  14: "PEOPLE SEARCH",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -72,7 +74,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 10, 11, 12, 92, 93, 94, 201, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 92, 93, 94, 201, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -627,6 +629,89 @@ async function fetchDmarcAnalyzeLines(moduleId: number, target: string): Promise
   return lines;
 }
 
+const SERPAPI_KEY = process.env["SERPAPI_KEY"] ?? "";
+
+async function fetchSerpApiResults(
+  query: string,
+  params: Record<string, string> = {},
+): Promise<{
+  organic_results?: Array<{ title?: string; link?: string; snippet?: string; displayed_link?: string }>;
+  news_results?: Array<{ title?: string; link?: string; snippet?: string; source?: string; date?: string }>;
+  error?: string;
+}> {
+  if (!SERPAPI_KEY) throw new Error("SERPAPI_KEY not configured");
+  const url = new URL("https://serpapi.com/search.json");
+  url.searchParams.set("api_key", SERPAPI_KEY);
+  url.searchParams.set("q", query);
+  url.searchParams.set("num", "10");
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await fetch(url.toString(), { headers: { "User-Agent": "swept-sentinel-osint" } });
+  if (!res.ok) throw new Error(`SerpApi responded with status ${res.status}`);
+  return (await res.json()) as Awaited<ReturnType<typeof fetchSerpApiResults>>;
+}
+
+async function fetchDbSearchLines(moduleId: number, target: string): Promise<string[]> {
+  const data = await fetchSerpApiResults(target, { engine: "google" });
+  const results = data.organic_results ?? [];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] DB SEARCH — executing on: ${target}`,
+    `[QUERY] Google web search via SerpApi`,
+    `[RESULT] organic results found: ${results.length}`,
+  ];
+  for (const r of results.slice(0, 8)) {
+    lines.push(`[HIT] ${r.title ?? "untitled"}`);
+    lines.push(`  url: ${r.link ?? "n/a"}`);
+    if (r.snippet) lines.push(`  snippet: ${r.snippet.slice(0, 120)}${r.snippet.length > 120 ? "…" : ""}`);
+  }
+  if (results.length === 0) lines.push(`[RESULT] no results returned`);
+  lines.push(`[DONE] Search complete.`);
+  return lines;
+}
+
+async function fetchNewsSearchLines(moduleId: number, target: string): Promise<string[]> {
+  const data = await fetchSerpApiResults(target, { engine: "google", tbm: "nws" });
+  const results = data.news_results ?? [];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] NEWS SEARCH — executing on: ${target}`,
+    `[QUERY] Google News search via SerpApi`,
+    `[RESULT] news articles found: ${results.length}`,
+  ];
+  for (const r of results.slice(0, 8)) {
+    lines.push(`[ARTICLE] ${r.title ?? "untitled"}`);
+    lines.push(`  source: ${r.source ?? "unknown"}  date: ${r.date ?? "n/a"}`);
+    lines.push(`  url: ${r.link ?? "n/a"}`);
+    if (r.snippet) lines.push(`  summary: ${r.snippet.slice(0, 120)}${r.snippet.length > 120 ? "…" : ""}`);
+  }
+  if (results.length === 0) lines.push(`[RESULT] no news articles found`);
+  lines.push(`[DONE] News search complete.`);
+  return lines;
+}
+
+async function fetchPeopleSearchLines(moduleId: number, target: string): Promise<string[]> {
+  const query = `"${target}" (site:linkedin.com OR site:twitter.com OR site:facebook.com OR site:instagram.com OR "about.me")`;
+  const data = await fetchSerpApiResults(query, { engine: "google" });
+  const results = data.organic_results ?? [];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] PEOPLE SEARCH — executing on: ${target}`,
+    `[QUERY] targeted social-profile search via SerpApi Google`,
+    `[RESULT] profile hits found: ${results.length}`,
+  ];
+  for (const r of results.slice(0, 8)) {
+    const platform = r.link?.includes("linkedin") ? "LinkedIn"
+      : r.link?.includes("twitter") ? "Twitter/X"
+      : r.link?.includes("facebook") ? "Facebook"
+      : r.link?.includes("instagram") ? "Instagram"
+      : r.link?.includes("about.me") ? "About.me"
+      : "Web";
+    lines.push(`[PROFILE] [${platform}] ${r.title ?? "untitled"}`);
+    lines.push(`  url: ${r.link ?? "n/a"}`);
+    if (r.snippet) lines.push(`  info: ${r.snippet.slice(0, 120)}${r.snippet.length > 120 ? "…" : ""}`);
+  }
+  if (results.length === 0) lines.push(`[RESULT] no public profiles found for this target`);
+  lines.push(`[DONE] People search complete.`);
+  return lines;
+}
+
 async function runRealLookup(
   moduleId: number,
   target: string,
@@ -643,10 +728,16 @@ async function runRealLookup(
       lines = await fetchPortScanLines(target);
     } else if (moduleId === 5) {
       lines = await fetchWhoisLines(target);
+    } else if (moduleId === 9) {
+      lines = await fetchDbSearchLines(moduleId, target);
     } else if (moduleId === 11) {
       lines = await fetchGithubLookupLines(moduleId, target);
     } else if (moduleId === 12) {
       lines = await fetchUsernameCheckLines(moduleId, target);
+    } else if (moduleId === 13) {
+      lines = await fetchNewsSearchLines(moduleId, target);
+    } else if (moduleId === 14) {
+      lines = await fetchPeopleSearchLines(moduleId, target);
     } else if (moduleId === 92) {
       lines = await fetchSslCertLines(moduleId, target);
     } else if (moduleId === 93) {
