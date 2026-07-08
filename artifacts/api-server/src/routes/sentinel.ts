@@ -37,6 +37,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   21: "ZONE TRANSFER",
   22: "ZIP LOOKUP",
   23: "ADDRESS LOOKUP",
+  24: "AREA CODE",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -100,7 +101,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -735,6 +736,219 @@ async function fetchPeopleSearchLines(moduleId: number, target: string): Promise
   }
   if (results.length === 0) lines.push(`[RESULT] no public profiles found for this target`);
   lines.push(`[DONE] People search complete.`);
+  return lines;
+}
+
+async function fetchAreaCodeLines(moduleId: number, target: string): Promise<string[]> {
+  const input = target.trim().replace(/^\+/, "");
+  const lines: string[] = [
+    `[MODULE ${moduleId}] AREA CODE — executing on: ${input}`,
+  ];
+
+  const STATE_INFO: Record<string, { name: string; tz: string; country: string }> = {
+    AL: { name: "Alabama", tz: "CT (UTC-6/-5)", country: "US" },
+    AK: { name: "Alaska", tz: "AKT (UTC-9/-8)", country: "US" },
+    AZ: { name: "Arizona", tz: "MT (UTC-7, no DST)", country: "US" },
+    AR: { name: "Arkansas", tz: "CT (UTC-6/-5)", country: "US" },
+    CA: { name: "California", tz: "PT (UTC-8/-7)", country: "US" },
+    CO: { name: "Colorado", tz: "MT (UTC-7/-6)", country: "US" },
+    CT: { name: "Connecticut", tz: "ET (UTC-5/-4)", country: "US" },
+    DC: { name: "Washington D.C.", tz: "ET (UTC-5/-4)", country: "US" },
+    DE: { name: "Delaware", tz: "ET (UTC-5/-4)", country: "US" },
+    FL: { name: "Florida", tz: "ET (UTC-5/-4)", country: "US" },
+    GA: { name: "Georgia", tz: "ET (UTC-5/-4)", country: "US" },
+    HI: { name: "Hawaii", tz: "HT (UTC-10, no DST)", country: "US" },
+    ID: { name: "Idaho", tz: "MT (UTC-7/-6)", country: "US" },
+    IL: { name: "Illinois", tz: "CT (UTC-6/-5)", country: "US" },
+    IN: { name: "Indiana", tz: "ET (UTC-5/-4)", country: "US" },
+    IA: { name: "Iowa", tz: "CT (UTC-6/-5)", country: "US" },
+    KS: { name: "Kansas", tz: "CT (UTC-6/-5)", country: "US" },
+    KY: { name: "Kentucky", tz: "ET (UTC-5/-4)", country: "US" },
+    LA: { name: "Louisiana", tz: "CT (UTC-6/-5)", country: "US" },
+    ME: { name: "Maine", tz: "ET (UTC-5/-4)", country: "US" },
+    MD: { name: "Maryland", tz: "ET (UTC-5/-4)", country: "US" },
+    MA: { name: "Massachusetts", tz: "ET (UTC-5/-4)", country: "US" },
+    MI: { name: "Michigan", tz: "ET (UTC-5/-4)", country: "US" },
+    MN: { name: "Minnesota", tz: "CT (UTC-6/-5)", country: "US" },
+    MS: { name: "Mississippi", tz: "CT (UTC-6/-5)", country: "US" },
+    MO: { name: "Missouri", tz: "CT (UTC-6/-5)", country: "US" },
+    MT: { name: "Montana", tz: "MT (UTC-7/-6)", country: "US" },
+    NE: { name: "Nebraska", tz: "CT (UTC-6/-5)", country: "US" },
+    NV: { name: "Nevada", tz: "PT (UTC-8/-7)", country: "US" },
+    NH: { name: "New Hampshire", tz: "ET (UTC-5/-4)", country: "US" },
+    NJ: { name: "New Jersey", tz: "ET (UTC-5/-4)", country: "US" },
+    NM: { name: "New Mexico", tz: "MT (UTC-7/-6)", country: "US" },
+    NY: { name: "New York", tz: "ET (UTC-5/-4)", country: "US" },
+    NC: { name: "North Carolina", tz: "ET (UTC-5/-4)", country: "US" },
+    ND: { name: "North Dakota", tz: "CT (UTC-6/-5)", country: "US" },
+    OH: { name: "Ohio", tz: "ET (UTC-5/-4)", country: "US" },
+    OK: { name: "Oklahoma", tz: "CT (UTC-6/-5)", country: "US" },
+    OR: { name: "Oregon", tz: "PT (UTC-8/-7)", country: "US" },
+    PA: { name: "Pennsylvania", tz: "ET (UTC-5/-4)", country: "US" },
+    RI: { name: "Rhode Island", tz: "ET (UTC-5/-4)", country: "US" },
+    SC: { name: "South Carolina", tz: "ET (UTC-5/-4)", country: "US" },
+    SD: { name: "South Dakota", tz: "CT (UTC-6/-5)", country: "US" },
+    TN: { name: "Tennessee", tz: "CT (UTC-6/-5)", country: "US" },
+    TX: { name: "Texas", tz: "CT (UTC-6/-5)", country: "US" },
+    UT: { name: "Utah", tz: "MT (UTC-7/-6)", country: "US" },
+    VT: { name: "Vermont", tz: "ET (UTC-5/-4)", country: "US" },
+    VI: { name: "U.S. Virgin Islands", tz: "AT (UTC-4, no DST)", country: "US" },
+    VA: { name: "Virginia", tz: "ET (UTC-5/-4)", country: "US" },
+    WA: { name: "Washington", tz: "PT (UTC-8/-7)", country: "US" },
+    WV: { name: "West Virginia", tz: "ET (UTC-5/-4)", country: "US" },
+    WI: { name: "Wisconsin", tz: "CT (UTC-6/-5)", country: "US" },
+    WY: { name: "Wyoming", tz: "MT (UTC-7/-6)", country: "US" },
+    ON: { name: "Ontario", tz: "ET (UTC-5/-4)", country: "CA" },
+    QC: { name: "Quebec", tz: "ET (UTC-5/-4)", country: "CA" },
+    BC: { name: "British Columbia", tz: "PT (UTC-8/-7)", country: "CA" },
+    AB: { name: "Alberta", tz: "MT (UTC-7/-6)", country: "CA" },
+    MB: { name: "Manitoba", tz: "CT (UTC-6/-5)", country: "CA" },
+    SK: { name: "Saskatchewan", tz: "CT (UTC-6, no DST)", country: "CA" },
+    NS: { name: "Nova Scotia", tz: "AT (UTC-4/-3)", country: "CA" },
+    NB: { name: "New Brunswick", tz: "AT (UTC-4/-3)", country: "CA" },
+    NL: { name: "Newfoundland", tz: "NT (UTC-3:30/-2:30)", country: "CA" },
+  };
+
+  const NANP: Record<string, string> = {
+    "201":"NJ","202":"DC","203":"CT","204":"MB","205":"AL","206":"WA","207":"ME",
+    "208":"ID","209":"CA","210":"TX","212":"NY","213":"CA","214":"TX","215":"PA",
+    "216":"OH","217":"IL","218":"MN","219":"IN","224":"IL","225":"LA","226":"ON",
+    "228":"MS","229":"GA","231":"MI","234":"OH","236":"BC","239":"FL","240":"MD",
+    "248":"MI","249":"ON","250":"BC","251":"AL","252":"NC","253":"WA","254":"TX",
+    "256":"AL","260":"IN","262":"WI","263":"QC","267":"PA","269":"MI","270":"KY",
+    "272":"PA","276":"VA","281":"TX","289":"ON","301":"MD","302":"DE","303":"CO",
+    "304":"WV","305":"FL","306":"SK","307":"WY","308":"NE","309":"IL","310":"CA",
+    "312":"IL","313":"MI","314":"MO","315":"NY","316":"KS","317":"IN","318":"LA",
+    "319":"IA","320":"MN","321":"FL","323":"CA","325":"TX","330":"OH","331":"IL",
+    "334":"AL","336":"NC","337":"LA","339":"MA","340":"VI","343":"ON","347":"NY",
+    "351":"MA","352":"FL","360":"WA","361":"TX","365":"ON","367":"QC","380":"OH",
+    "385":"UT","386":"FL","401":"RI","402":"NE","403":"AB","404":"GA","405":"OK",
+    "406":"MT","407":"FL","408":"CA","409":"TX","410":"MD","412":"PA","413":"MA",
+    "414":"WI","415":"CA","416":"ON","417":"MO","418":"QC","419":"OH","423":"TN",
+    "424":"CA","425":"WA","430":"TX","431":"MB","432":"TX","434":"VA","435":"UT",
+    "437":"ON","438":"QC","440":"OH","442":"CA","443":"MD","450":"QC","458":"OR",
+    "469":"TX","470":"GA","475":"CT","478":"GA","479":"AR","480":"AZ","484":"PA",
+    "501":"AR","502":"KY","503":"OR","504":"LA","505":"NM","506":"NB","507":"MN",
+    "508":"MA","509":"WA","510":"CA","512":"TX","513":"OH","514":"QC","515":"IA",
+    "516":"NY","517":"MI","518":"NY","519":"ON","520":"AZ","530":"CA","531":"NE",
+    "539":"OK","540":"VA","541":"OR","548":"ON","551":"NJ","559":"CA","561":"FL",
+    "562":"CA","563":"IA","564":"WA","567":"OH","570":"PA","571":"VA","573":"MO",
+    "574":"IN","575":"NM","579":"QC","580":"OK","581":"QC","587":"AB","585":"NY",
+    "586":"MI","601":"MS","602":"AZ","603":"NH","604":"BC","605":"SD",
+    "606":"KY","607":"NY","608":"WI","609":"NJ","610":"PA","612":"MN","613":"ON",
+    "614":"OH","615":"TN","616":"MI","617":"MA","618":"IL","619":"CA","620":"KS",
+    "623":"AZ","626":"CA","628":"CA","629":"TN","630":"IL","631":"NY","636":"MO",
+    "639":"SK","641":"IA","647":"ON","646":"NY","650":"CA","651":"MN","657":"CA",
+    "660":"MO","661":"CA","662":"MS","667":"MD","669":"CA","672":"BC","678":"GA",
+    "679":"ON","681":"WV","682":"TX","683":"ON","701":"ND","702":"NV","703":"VA",
+    "704":"NC","705":"ON","706":"GA","707":"CA","708":"IL","709":"NL","712":"IA",
+    "713":"TX","714":"CA","715":"WI","716":"NY","717":"PA","718":"NY","719":"CO",
+    "720":"CO","721":"NJ","724":"PA","725":"NV","726":"TX","727":"FL","731":"TN",
+    "732":"NJ","734":"MI","737":"TX","740":"OH","742":"ON","743":"NC","747":"CA",
+    "753":"ON","754":"FL","757":"VA","760":"CA","762":"GA","763":"MN","765":"IN",
+    "769":"MS","770":"GA","771":"VA","772":"FL","773":"IL","774":"MA","775":"NV",
+    "778":"BC","779":"IL","780":"AB","781":"MA","782":"NS","785":"KS","786":"FL",
+    "801":"UT","802":"VT","803":"SC","804":"VA","805":"CA","806":"TX",
+    "807":"ON","808":"HI","810":"MI","812":"IN","813":"FL","814":"PA","815":"IL",
+    "816":"MO","817":"TX","818":"CA","819":"QC","825":"AB","828":"NC","830":"TX",
+    "831":"CA","832":"TX","838":"NY","843":"SC","845":"NY","847":"IL","848":"NJ",
+    "850":"FL","854":"SC","856":"NJ","857":"MA","858":"CA","859":"KY","860":"CT",
+    "861":"CA","862":"NJ","863":"FL","864":"SC","865":"TN","867":"ON","870":"AR",
+    "872":"IL","873":"QC","878":"PA","902":"NS","905":"ON","906":"MI","907":"AK",
+    "908":"NJ","909":"CA","910":"NC","912":"GA","913":"KS","914":"NY","915":"TX",
+    "916":"CA","917":"NY","918":"OK","919":"NC","920":"WI","925":"CA","928":"AZ",
+    "929":"NY","930":"IN","931":"TN","934":"NY","936":"TX","937":"OH","938":"AL",
+    "940":"TX","941":"FL","942":"ON","945":"TX","947":"MI","949":"CA","951":"CA",
+    "952":"MN","954":"FL","956":"TX","959":"CT","970":"CO","971":"OR","972":"TX",
+    "973":"NJ","978":"MA","979":"TX","980":"NC","983":"CO","984":"NC","985":"LA",
+    "986":"ID","989":"MI",
+  };
+
+  const INTL: Record<string, string> = {
+    "1":"United States / Canada / Caribbean (NANP)",
+    "7":"Russia / Kazakhstan","20":"Egypt","27":"South Africa","30":"Greece",
+    "31":"Netherlands","32":"Belgium","33":"France","34":"Spain","36":"Hungary",
+    "39":"Italy","40":"Romania","41":"Switzerland","43":"Austria","44":"United Kingdom",
+    "45":"Denmark","46":"Sweden","47":"Norway","48":"Poland","49":"Germany",
+    "51":"Peru","52":"Mexico","53":"Cuba","54":"Argentina","55":"Brazil",
+    "56":"Chile","57":"Colombia","58":"Venezuela","60":"Malaysia","61":"Australia",
+    "62":"Indonesia","63":"Philippines","64":"New Zealand","65":"Singapore",
+    "66":"Thailand","81":"Japan","82":"South Korea","84":"Vietnam","86":"China",
+    "90":"Turkey","91":"India","92":"Pakistan","93":"Afghanistan","94":"Sri Lanka",
+    "95":"Myanmar","98":"Iran","212":"Morocco","213":"Algeria","216":"Tunisia",
+    "218":"Libya","220":"Gambia","221":"Senegal","234":"Nigeria","254":"Kenya",
+    "255":"Tanzania","256":"Uganda","260":"Zambia","263":"Zimbabwe","351":"Portugal",
+    "353":"Ireland","354":"Iceland","355":"Albania","358":"Finland","359":"Bulgaria",
+    "370":"Lithuania","371":"Latvia","372":"Estonia","373":"Moldova","374":"Armenia",
+    "375":"Belarus","376":"Andorra","380":"Ukraine","381":"Serbia","385":"Croatia",
+    "386":"Slovenia","387":"Bosnia and Herzegovina","389":"North Macedonia",
+    "420":"Czech Republic","421":"Slovakia","423":"Liechtenstein",
+    "502":"Guatemala","503":"El Salvador","504":"Honduras","505":"Nicaragua",
+    "506":"Costa Rica","507":"Panama","509":"Haiti","852":"Hong Kong","853":"Macau",
+    "855":"Cambodia","856":"Laos","880":"Bangladesh","886":"Taiwan","960":"Maldives",
+    "961":"Lebanon","962":"Jordan","963":"Syria","964":"Iraq","965":"Kuwait",
+    "966":"Saudi Arabia","967":"Yemen","968":"Oman","971":"UAE","972":"Israel",
+    "973":"Bahrain","974":"Qatar","975":"Bhutan","976":"Mongolia","977":"Nepal",
+    "992":"Tajikistan","993":"Turkmenistan","994":"Azerbaijan","995":"Georgia",
+    "996":"Kyrgyzstan","998":"Uzbekistan",
+  };
+
+  const digits = input.replace(/\D/g, "");
+
+  if (digits.length === 3 && NANP[digits]) {
+    const stateAbbr = NANP[digits]!;
+    const stateInfo = STATE_INFO[stateAbbr];
+    lines.push(`[QUERY] NANP area code lookup + geographic enrichment`);
+    lines.push(`[RESULT] area code: ${digits}`);
+    lines.push(`[RESULT] type: North American Numbering Plan (NANP)`);
+    lines.push(`[RESULT] state/province: ${stateInfo?.name ?? stateAbbr} (${stateAbbr})`);
+    lines.push(`[RESULT] country: ${stateInfo?.country === "CA" ? "Canada" : "United States"}`);
+    lines.push(`[RESULT] time zone: ${stateInfo?.tz ?? "unknown"}`);
+    const allAreaCodes = Object.entries(NANP).filter(([, s]) => s === stateAbbr).map(([c]) => c);
+    lines.push(`[RESULT] all area codes for ${stateAbbr}: ${allAreaCodes.join(", ")}`);
+    try {
+      const searchName = stateInfo?.country === "CA"
+        ? `${stateInfo.name} Canada`
+        : `${stateInfo?.name ?? stateAbbr} USA`;
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchName)}&format=json&addressdetails=1&limit=1`,
+        { headers: { "User-Agent": "swept-sentinel-osint" } },
+      );
+      if (res.ok) {
+        const data = (await res.json()) as Array<{ lat?: string; lon?: string; boundingbox?: string[] }>;
+        if (data[0]) {
+          lines.push(`[RESULT] geographic center: ${data[0].lat}, ${data[0].lon}`);
+          if (data[0].boundingbox) {
+            const [s, n, w, e] = data[0].boundingbox;
+            lines.push(`[RESULT] bounding box: ${s},${w} → ${n},${e}`);
+          }
+        }
+      }
+    } catch { /* ignore */ }
+  } else if (digits.length > 3 || !NANP[digits]) {
+    const match = Object.keys(INTL).sort((a, b) => b.length - a.length)
+      .find((cc) => digits.startsWith(cc));
+    if (match) {
+      lines.push(`[QUERY] international calling code lookup`);
+      lines.push(`[RESULT] calling code: +${match}`);
+      lines.push(`[RESULT] country/region: ${INTL[match]}`);
+      if (match === "1" && digits.length === 4) {
+        const areaCode = digits.slice(1);
+        const stateAbbr = NANP[areaCode];
+        if (stateAbbr) {
+          lines.push(`[RESULT] NANP area: ${STATE_INFO[stateAbbr]?.name ?? stateAbbr} (${stateAbbr})`);
+          lines.push(`[RESULT] time zone: ${STATE_INFO[stateAbbr]?.tz ?? "unknown"}`);
+        }
+      }
+    } else {
+      lines.push(`[RESULT] not found in NANP or international calling code database`);
+      lines.push(`[TIP] enter a 3-digit NANP area code (e.g. 415) or country calling code (e.g. 44 for UK)`);
+    }
+  } else {
+    lines.push(`[RESULT] area code ${digits} not found in database`);
+    lines.push(`[TIP] try a US/Canada 3-digit area code (e.g. 212, 415, 416, 808)`);
+  }
+  lines.push(`[DONE] Area code lookup complete.`);
   return lines;
 }
 
@@ -2039,6 +2253,8 @@ async function runRealLookup(
       lines = await fetchZipLookupLines(moduleId, target);
     } else if (moduleId === 23) {
       lines = await fetchAddressLookupLines(moduleId, target);
+    } else if (moduleId === 24) {
+      lines = await fetchAreaCodeLines(moduleId, target);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
