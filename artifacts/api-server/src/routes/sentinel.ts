@@ -29,6 +29,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   14: "PEOPLE SEARCH",
   15: "IMAGE SEARCH",
   16: "SITE ENUM",
+  17: "SUBDOMAIN SCAN",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -44,11 +45,16 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   97: "ADMIN FINDER",
   98: "ROBOTS SCAN",
   99: "API PROBE",
+  100: "CERT HISTORY",
   131: "SQL MAP",
   151: "CVE LOOKUP",
   152: "MAC LOOKUP",
+  153: "SHODAN PROBE",
+  154: "THREAT INTEL",
   201: "BGP ROUTE",
   207: "CDN ORIGIN",
+  208: "TOR CHECK",
+  209: "URL SCAN",
   230: "DMARC ANALYZE",
 };
 
@@ -83,7 +89,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 71, 92, 93, 94, 95, 96, 97, 98, 99, 151, 152, 201, 207, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 201, 207, 208, 209, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -721,6 +727,191 @@ async function fetchPeopleSearchLines(moduleId: number, target: string): Promise
   return lines;
 }
 
+async function fetchSubdomainScanLines(moduleId: number, target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const res = await fetch(`https://api.hackertarget.com/hostsearch/?q=${encodeURIComponent(domain)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (!res.ok) throw new Error(`HackerTarget responded with ${res.status}`);
+  const text = await res.text();
+  if (text.startsWith("error") || text.startsWith("API count")) throw new Error(text.trim());
+  const entries = text.split("\n").map((l) => l.trim()).filter((l) => l.includes(","));
+  const lines: string[] = [
+    `[MODULE ${moduleId}] SUBDOMAIN SCAN — executing on: ${domain}`,
+    `[QUERY] HackerTarget passive subdomain enumeration`,
+    `[RESULT] subdomains found: ${entries.length}`,
+  ];
+  for (const e of entries.slice(0, 40)) {
+    const [sub, ip] = e.split(",");
+    lines.push(`[SUB] ${sub}  →  ${ip}`);
+  }
+  if (entries.length > 40) lines.push(`[RESULT] ... and ${entries.length - 40} more`);
+  if (entries.length === 0) lines.push(`[RESULT] no subdomains found`);
+  lines.push(`[DONE] Subdomain scan complete.`);
+  return lines;
+}
+
+async function fetchCertHistoryLines(moduleId: number, target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const res = await fetch(
+    `https://crt.sh/?q=%.${encodeURIComponent(domain)}&output=json`,
+    { headers: { "User-Agent": "swept-sentinel-osint", "Accept": "application/json", "Accept-Encoding": "identity" } },
+  );
+  if (!res.ok) throw new Error(`crt.sh responded with ${res.status}`);
+  const data = (await res.json()) as Array<{
+    id: number; name_value: string; issuer_ca_id: number;
+    issuer_name: string; not_before: string; not_after: string;
+  }>;
+  const uniqueNames = [...new Set(data.map((r) => r.name_value.replace(/\n/g, ", ")))];
+  const issuers = [...new Set(data.map((r) => r.issuer_name.match(/O=([^,]+)/)?.[1]?.trim()).filter(Boolean))];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] CERT HISTORY — executing on: ${domain}`,
+    `[QUERY] crt.sh certificate transparency log search`,
+    `[RESULT] total cert records: ${data.length}`,
+    `[RESULT] unique domains/subdomains: ${uniqueNames.length}`,
+    `[RESULT] certificate issuers seen: ${issuers.join(", ") || "unknown"}`,
+  ];
+  const sorted = data.sort((a, b) => new Date(b.not_before).getTime() - new Date(a.not_before).getTime());
+  lines.push(`[RESULT] most recent cert issued: ${sorted[0]?.not_before?.slice(0, 10) ?? "unknown"}`);
+  for (const name of uniqueNames.slice(0, 30)) lines.push(`[DOMAIN] ${name}`);
+  if (uniqueNames.length > 30) lines.push(`[RESULT] ... and ${uniqueNames.length - 30} more`);
+  lines.push(`[DONE] Certificate transparency lookup complete.`);
+  return lines;
+}
+
+async function fetchShodanProbeLines(moduleId: number, target: string): Promise<string[]> {
+  let ip = target.trim();
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
+  if (!isIp) {
+    try { [ip] = await dns.resolve4(ip); }
+    catch { throw new Error(`could not resolve ${target} to an IP address`); }
+  }
+  const res = await fetch(`https://internetdb.shodan.io/${encodeURIComponent(ip)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (res.status === 404) {
+    return [
+      `[MODULE ${moduleId}] SHODAN PROBE — executing on: ${ip}`,
+      `[QUERY] Shodan InternetDB — open ports, banners, vulns (no API key required)`,
+      `[RESULT] no data found for this IP in Shodan InternetDB`,
+      `[DONE] Shodan probe complete.`,
+    ];
+  }
+  if (!res.ok) throw new Error(`Shodan InternetDB responded with ${res.status}`);
+  const data = (await res.json()) as {
+    ip?: string; ports?: number[]; hostnames?: string[];
+    cpes?: string[]; tags?: string[]; vulns?: string[];
+  };
+  const lines: string[] = [
+    `[MODULE ${moduleId}] SHODAN PROBE — executing on: ${ip}`,
+    `[QUERY] Shodan InternetDB — open ports, banners, vulns (no API key required)`,
+    `[RESULT] open ports: ${data.ports?.join(", ") || "none"}`,
+    `[RESULT] hostnames: ${data.hostnames?.join(", ") || "none"}`,
+    `[RESULT] tags: ${data.tags?.join(", ") || "none"}`,
+    `[RESULT] cpes (software fingerprints): ${data.cpes?.length ?? 0}`,
+  ];
+  for (const c of data.cpes ?? []) lines.push(`  [CPE] ${c}`);
+  lines.push(`[RESULT] known vulns: ${data.vulns?.length ?? 0}`);
+  for (const v of data.vulns ?? []) lines.push(`  [VULN] ${v}`);
+  lines.push(`[DONE] Shodan probe complete.`);
+  return lines;
+}
+
+async function fetchThreatIntelLines(moduleId: number, target: string): Promise<string[]> {
+  let ip = target.trim();
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
+  if (!isIp) {
+    try { [ip] = await dns.resolve4(ip); }
+    catch { throw new Error(`could not resolve ${target} to an IP address`); }
+  }
+  const res = await fetch(`https://api.greynoise.io/v3/community/${encodeURIComponent(ip)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint", "Accept": "application/json" },
+  });
+  if (!res.ok && res.status !== 404) throw new Error(`GreyNoise responded with ${res.status}`);
+  const data = (await res.json()) as {
+    ip?: string; noise?: boolean; riot?: boolean;
+    classification?: string; name?: string; link?: string; message?: string;
+  };
+  const lines: string[] = [
+    `[MODULE ${moduleId}] THREAT INTEL — executing on: ${ip}`,
+    `[QUERY] GreyNoise Community API — internet noise / scanner classification`,
+  ];
+  if (data.message) {
+    lines.push(`[RESULT] ${data.message}`);
+  } else {
+    lines.push(`[RESULT] internet noise: ${data.noise ? "YES — this IP is actively scanning the internet" : "NO"}`);
+    lines.push(`[RESULT] riot (known benign): ${data.riot ? `YES — ${data.name ?? "known provider"}` : "NO"}`);
+    if (data.classification) lines.push(`[RESULT] classification: ${data.classification}`);
+    if (data.name) lines.push(`[RESULT] identified as: ${data.name}`);
+    if (data.link) lines.push(`[RESULT] details: ${data.link}`);
+    const risk = data.noise ? "HIGH — active internet scanner"
+      : data.riot ? "LOW — known benign service"
+      : "MEDIUM — not observed scanning";
+    lines.push(`[ASSESSMENT] threat level: ${risk}`);
+  }
+  lines.push(`[DONE] Threat intel lookup complete.`);
+  return lines;
+}
+
+async function fetchTorCheckLines(moduleId: number, target: string): Promise<string[]> {
+  let ip = target.trim();
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
+  if (!isIp) {
+    try { [ip] = await dns.resolve4(ip); }
+    catch { throw new Error(`could not resolve ${target} to an IP address`); }
+  }
+  const res = await fetch("https://check.torproject.org/torbulkexitlist", {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (!res.ok) throw new Error(`Tor exit list responded with ${res.status}`);
+  const text = await res.text();
+  const exitNodes = new Set(text.split("\n").map((l) => l.trim()).filter((l) => l.match(/^\d/)));
+  const isTor = exitNodes.has(ip);
+  const lines: string[] = [
+    `[MODULE ${moduleId}] TOR CHECK — executing on: ${ip}`,
+    `[QUERY] Tor Project official exit node list`,
+    `[RESULT] exit nodes in list: ${exitNodes.size}`,
+    `[RESULT] is tor exit node: ${isTor ? "YES" : "NO"}`,
+    `[ASSESSMENT] ${isTor ? "HIGH — this IP is a known Tor exit node. Traffic may be anonymized." : "CLEAR — not found in Tor exit node list"}`,
+  ];
+  lines.push(`[DONE] Tor check complete.`);
+  return lines;
+}
+
+async function fetchUrlScanLines(moduleId: number, target: string): Promise<string[]> {
+  const query = target.includes(".")
+    ? `domain:${target.replace(/^https?:\/\//, "").replace(/\/.*$/, "")}`
+    : target;
+  const res = await fetch(
+    `https://urlscan.io/api/v1/search/?q=${encodeURIComponent(query)}&size=10`,
+    { headers: { "User-Agent": "swept-sentinel-osint", "Accept": "application/json" } },
+  );
+  if (!res.ok) throw new Error(`URLScan.io responded with ${res.status}`);
+  const data = (await res.json()) as {
+    total: number;
+    results: Array<{
+      page?: { url?: string; domain?: string; ip?: string; country?: string; server?: string };
+      verdicts?: { overall?: { score?: number; malicious?: boolean; tags?: string[] } };
+      task?: { time?: string };
+    }>;
+  };
+  const lines: string[] = [
+    `[MODULE ${moduleId}] URL SCAN — executing on: ${target}`,
+    `[QUERY] URLScan.io public scan history`,
+    `[RESULT] total scans found: ${data.total ?? 0}`,
+  ];
+  for (const r of (data.results ?? []).slice(0, 8)) {
+    const score = r.verdicts?.overall?.score ?? 0;
+    const malicious = r.verdicts?.overall?.malicious ? "MALICIOUS" : score > 50 ? "SUSPICIOUS" : "CLEAN";
+    lines.push(`[SCAN] ${r.page?.url ?? "unknown"}`);
+    lines.push(`  time: ${r.task?.time?.slice(0, 10) ?? "unknown"}  ip: ${r.page?.ip ?? "?"}  verdict: ${malicious} (score: ${score})`);
+    if (r.verdicts?.overall?.tags?.length) lines.push(`  tags: ${r.verdicts.overall.tags.join(", ")}`);
+  }
+  if (!data.results?.length) lines.push(`[RESULT] no scan history found`);
+  lines.push(`[DONE] URL scan history complete.`);
+  return lines;
+}
+
 async function fetchTechStackLines(moduleId: number, target: string): Promise<string[]> {
   const base = target.startsWith("http") ? target : `https://${target}`;
   const domain = base.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -1227,6 +1418,8 @@ async function runRealLookup(
       lines = await fetchImageSearchLines(moduleId, target);
     } else if (moduleId === 16) {
       lines = await fetchSiteEnumLines(moduleId, target);
+    } else if (moduleId === 17) {
+      lines = await fetchSubdomainScanLines(moduleId, target);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
@@ -1245,14 +1438,24 @@ async function runRealLookup(
       lines = await fetchRobotsScanLines(moduleId, target);
     } else if (moduleId === 99) {
       lines = await fetchApiProbeLines(moduleId, target);
+    } else if (moduleId === 100) {
+      lines = await fetchCertHistoryLines(moduleId, target);
     } else if (moduleId === 151) {
       lines = await fetchCveLookupLines(moduleId, target);
     } else if (moduleId === 152) {
       lines = await fetchMacLookupLines(moduleId, target);
+    } else if (moduleId === 153) {
+      lines = await fetchShodanProbeLines(moduleId, target);
+    } else if (moduleId === 154) {
+      lines = await fetchThreatIntelLines(moduleId, target);
     } else if (moduleId === 201) {
       lines = await fetchBgpRouteLines(moduleId, target);
     } else if (moduleId === 207) {
       lines = await fetchCdnOriginLines(moduleId, target);
+    } else if (moduleId === 208) {
+      lines = await fetchTorCheckLines(moduleId, target);
+    } else if (moduleId === 209) {
+      lines = await fetchUrlScanLines(moduleId, target);
     } else if (moduleId === 230) {
       lines = await fetchDmarcAnalyzeLines(moduleId, target);
     } else {
