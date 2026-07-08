@@ -17,6 +17,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   1: "IP TRACKER",
   2: "DNS RESOLVE",
   3: "PORT SCAN",
+  4: "ASN LOOKUP",
   5: "WHOIS QUERY",
   6: "PHONE OSINT",
   7: "EMAIL REP",
@@ -30,6 +31,10 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   15: "IMAGE SEARCH",
   16: "SITE ENUM",
   17: "SUBDOMAIN SCAN",
+  18: "DNS FULL",
+  19: "PAGE LINKS",
+  20: "SHARED HOST",
+  21: "ZONE TRANSFER",
   45: "INSTAGRAM",
   46: "TIKTOK",
   49: "TELEGRAM ID",
@@ -51,10 +56,14 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   152: "MAC LOOKUP",
   153: "SHODAN PROBE",
   154: "THREAT INTEL",
+  155: "RIPE STAT",
+  156: "DUCK INTEL",
   201: "BGP ROUTE",
   207: "CDN ORIGIN",
   208: "TOR CHECK",
   209: "URL SCAN",
+  210: "ARCHIVE DEPTH",
+  211: "NPM AUDIT",
   230: "DMARC ANALYZE",
 };
 
@@ -89,7 +98,7 @@ const activeRuns = new Map<string, {
   listeners: Array<(line: string) => void>;
 }>();
 
-const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 201, 207, 208, 209, 230]);
+const REAL_LOOKUP_MODULES = new Set([1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 71, 92, 93, 94, 95, 96, 97, 98, 99, 100, 151, 152, 153, 154, 155, 156, 201, 207, 208, 209, 210, 211, 230]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -724,6 +733,315 @@ async function fetchPeopleSearchLines(moduleId: number, target: string): Promise
   }
   if (results.length === 0) lines.push(`[RESULT] no public profiles found for this target`);
   lines.push(`[DONE] People search complete.`);
+  return lines;
+}
+
+async function fetchAsnLookupLines(moduleId: number, target: string): Promise<string[]> {
+  let ip = target.trim();
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
+  if (!isIp) {
+    try { [ip] = await dns.resolve4(ip); }
+    catch { throw new Error(`could not resolve ${target} to an IP address`); }
+  }
+  const res = await fetch(`https://api.hackertarget.com/aslookup/?q=${encodeURIComponent(ip)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (!res.ok) throw new Error(`HackerTarget responded with ${res.status}`);
+  const text = await res.text();
+  if (text.startsWith("error") || text.startsWith("API count")) throw new Error(text.trim());
+  const parts = text.trim().split(",");
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ASN LOOKUP — executing on: ${ip}`,
+    `[QUERY] HackerTarget ASN lookup`,
+    `[RESULT] ip: ${parts[0]?.replace(/"/g, "") ?? ip}`,
+    `[RESULT] asn: AS${parts[1]?.replace(/"/g, "").trim() ?? "unknown"}`,
+    `[RESULT] prefix: ${parts[2]?.replace(/"/g, "").trim() ?? "unknown"}`,
+    `[RESULT] org: ${parts[3]?.replace(/"/g, "").trim() ?? "unknown"}`,
+    `[DONE] ASN lookup complete.`,
+  ];
+  return lines;
+}
+
+async function fetchDnsFullLines(moduleId: number, target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const res = await fetch(`https://api.hackertarget.com/dnslookup/?q=${encodeURIComponent(domain)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (!res.ok) throw new Error(`HackerTarget responded with ${res.status}`);
+  const text = await res.text();
+  if (text.startsWith("error") || text.startsWith("API count")) throw new Error(text.trim());
+  const records = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const byType: Record<string, string[]> = {};
+  for (const r of records) {
+    const m = r.match(/^([A-Z]+)\s*:\s*(.+)$/);
+    if (m) {
+      const [, t, v] = m;
+      (byType[t] = byType[t] ?? []).push(v.trim());
+    }
+  }
+  const lines: string[] = [
+    `[MODULE ${moduleId}] DNS FULL — executing on: ${domain}`,
+    `[QUERY] HackerTarget full DNS record lookup (A, MX, NS, TXT, SOA)`,
+    `[RESULT] record types found: ${Object.keys(byType).join(", ") || "none"}`,
+  ];
+  for (const [type, vals] of Object.entries(byType)) {
+    for (const v of vals) lines.push(`[${type}] ${v}`);
+  }
+  if (!records.length) lines.push(`[RESULT] no DNS records returned`);
+  lines.push(`[DONE] Full DNS lookup complete.`);
+  return lines;
+}
+
+async function fetchPageLinksLines(moduleId: number, target: string): Promise<string[]> {
+  const url = target.startsWith("http") ? target : `https://${target}`;
+  const res = await fetch(`https://api.hackertarget.com/pagelinks/?q=${encodeURIComponent(url)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (!res.ok) throw new Error(`HackerTarget responded with ${res.status}`);
+  const text = await res.text();
+  if (text.startsWith("error") || text.startsWith("API count")) throw new Error(text.trim());
+  const links = text.split("\n").map((l) => l.trim()).filter((l) => l.startsWith("http"));
+  const domain = new URL(url).hostname;
+  const internal = links.filter((l) => { try { return new URL(l).hostname.endsWith(domain); } catch { return false; } });
+  const external = links.filter((l) => { try { return !new URL(l).hostname.endsWith(domain); } catch { return false; } });
+  const lines: string[] = [
+    `[MODULE ${moduleId}] PAGE LINKS — executing on: ${url}`,
+    `[QUERY] HackerTarget page link extraction`,
+    `[RESULT] total links: ${links.length} (internal: ${internal.length}, external: ${external.length})`,
+  ];
+  for (const l of internal.slice(0, 15)) lines.push(`[INTERNAL] ${l}`);
+  for (const l of external.slice(0, 15)) lines.push(`[EXTERNAL] ${l}`);
+  if (links.length > 30) lines.push(`[RESULT] ... and ${links.length - 30} more`);
+  if (!links.length) lines.push(`[RESULT] no links found`);
+  lines.push(`[DONE] Page link extraction complete.`);
+  return lines;
+}
+
+async function fetchSharedHostLines(moduleId: number, target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const res = await fetch(`https://api.hackertarget.com/findshareddns/?q=${encodeURIComponent(domain)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (!res.ok) throw new Error(`HackerTarget responded with ${res.status}`);
+  const text = await res.text();
+  if (text.startsWith("error") || text.startsWith("API count")) throw new Error(text.trim());
+  const hosts = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines: string[] = [
+    `[MODULE ${moduleId}] SHARED HOST — executing on: ${domain}`,
+    `[QUERY] HackerTarget shared DNS — other domains on the same IP`,
+    `[RESULT] co-hosted domains found: ${hosts.length}`,
+  ];
+  for (const h of hosts.slice(0, 40)) lines.push(`[HOST] ${h}`);
+  if (hosts.length > 40) lines.push(`[RESULT] ... and ${hosts.length - 40} more`);
+  if (!hosts.length) lines.push(`[RESULT] no shared hosts found (dedicated IP or no passive DNS data)`);
+  lines.push(`[DONE] Shared host lookup complete.`);
+  return lines;
+}
+
+async function fetchZoneTransferLines(moduleId: number, target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const res = await fetch(`https://api.hackertarget.com/zonetransfer/?q=${encodeURIComponent(domain)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint" },
+  });
+  if (!res.ok) throw new Error(`HackerTarget responded with ${res.status}`);
+  const text = await res.text();
+  if (text.startsWith("error") || text.startsWith("API count")) throw new Error(text.trim());
+  const records = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const vulnerable = !text.includes("AXFR failed") && !text.includes("no nameservers") && records.length > 2;
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ZONE TRANSFER — executing on: ${domain}`,
+    `[QUERY] DNS AXFR zone transfer attempt`,
+    `[RESULT] zone transfer: ${vulnerable ? "SUCCEEDED — server is VULNERABLE" : "REFUSED — server is protected"}`,
+    `[RESULT] records returned: ${records.length}`,
+  ];
+  if (vulnerable) {
+    lines.push(`[VULN] ZONE TRANSFER ALLOWED — all DNS records exposed:`);
+    for (const r of records.slice(0, 30)) lines.push(`  ${r}`);
+    if (records.length > 30) lines.push(`  ... and ${records.length - 30} more`);
+  } else {
+    for (const r of records.slice(0, 5)) lines.push(`[INFO] ${r}`);
+  }
+  lines.push(`[DONE] Zone transfer attempt complete.`);
+  return lines;
+}
+
+async function fetchRipeStatLines(moduleId: number, target: string): Promise<string[]> {
+  let ip = target.trim();
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
+  if (!isIp) {
+    try { [ip] = await dns.resolve4(ip); }
+    catch { throw new Error(`could not resolve ${target} to an IP address`); }
+  }
+  const prefixRes = await fetch(
+    `https://stat.ripe.net/data/prefix-overview/data.json?resource=${encodeURIComponent(ip)}`,
+    { headers: { "User-Agent": "swept-sentinel-osint" } },
+  );
+  if (!prefixRes.ok) throw new Error(`RIPE STAT responded with ${prefixRes.status}`);
+  const prefixData = (await prefixRes.json()) as {
+    data?: { asns?: Array<{ asn: number; holder: string }>; prefix?: string; is_less_specific?: boolean };
+  };
+  const asns = prefixData.data?.asns ?? [];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] RIPE STAT — executing on: ${ip}`,
+    `[QUERY] RIPE NCC Routing Information Service`,
+    `[RESULT] covering prefix: ${prefixData.data?.prefix ?? "unknown"}`,
+    `[RESULT] less specific: ${prefixData.data?.is_less_specific ? "yes" : "no"}`,
+    `[RESULT] origin ASNs: ${asns.length}`,
+  ];
+  for (const a of asns) lines.push(`[ASN] AS${a.asn} — ${a.holder}`);
+  if (asns.length > 0) {
+    const asnNum = asns[0]!.asn;
+    try {
+      const announcedRes = await fetch(
+        `https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS${asnNum}`,
+        { headers: { "User-Agent": "swept-sentinel-osint" } },
+      );
+      if (announcedRes.ok) {
+        const announcedData = (await announcedRes.json()) as {
+          data?: { prefixes?: Array<{ prefix: string }> };
+        };
+        const count = announcedData.data?.prefixes?.length ?? 0;
+        lines.push(`[RESULT] total prefixes announced by AS${asnNum}: ${count}`);
+        for (const p of (announcedData.data?.prefixes ?? []).slice(0, 10))
+          lines.push(`[PREFIX] ${p.prefix}`);
+        if (count > 10) lines.push(`[RESULT] ... and ${count - 10} more prefixes`);
+      }
+    } catch { /* ignore secondary fetch errors */ }
+  }
+  lines.push(`[DONE] RIPE STAT lookup complete.`);
+  return lines;
+}
+
+async function fetchDuckIntelLines(moduleId: number, target: string): Promise<string[]> {
+  const query = target.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const res = await fetch(
+    `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
+    { headers: { "User-Agent": "swept-sentinel-osint" } },
+  );
+  if (!res.ok) throw new Error(`DuckDuckGo responded with ${res.status}`);
+  const data = (await res.json()) as {
+    Abstract?: string; AbstractSource?: string; AbstractURL?: string;
+    Heading?: string; Type?: string;
+    Infobox?: { content?: Array<{ data_type: string; label: string; value: string }> };
+    RelatedTopics?: Array<{ Text?: string }>;
+  };
+  const lines: string[] = [
+    `[MODULE ${moduleId}] DUCK INTEL — executing on: ${query}`,
+    `[QUERY] DuckDuckGo instant answer entity intelligence`,
+  ];
+  if (data.Heading) lines.push(`[RESULT] entity: ${data.Heading} (type: ${data.Type ?? "unknown"})`);
+  if (data.Abstract) lines.push(`[ABSTRACT] ${data.Abstract}`);
+  if (data.AbstractSource) lines.push(`[SOURCE] ${data.AbstractSource} — ${data.AbstractURL ?? ""}`);
+  const infoFields = data.Infobox?.content ?? [];
+  if (infoFields.length) {
+    lines.push(`[RESULT] infobox fields: ${infoFields.length}`);
+    for (const f of infoFields.slice(0, 12)) lines.push(`  [${f.label}] ${f.value}`);
+  }
+  const related = data.RelatedTopics ?? [];
+  if (related.length) {
+    lines.push(`[RESULT] related topics: ${related.length}`);
+    for (const r of related.slice(0, 5)) if (r.Text) lines.push(`  ${r.Text.slice(0, 120)}`);
+  }
+  if (!data.Abstract && !data.Heading) lines.push(`[RESULT] no entity information found for this target`);
+  lines.push(`[DONE] DuckDuckGo intelligence lookup complete.`);
+  return lines;
+}
+
+async function fetchArchiveDepthLines(moduleId: number, target: string): Promise<string[]> {
+  const domain = target.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const res = await fetch(
+    `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}&output=json&limit=5&fl=timestamp,original,statuscode&from=20000101&fastLatest=false`,
+    { headers: { "User-Agent": "swept-sentinel-osint" } },
+  );
+  if (!res.ok) throw new Error(`Wayback CDX responded with ${res.status}`);
+  const data = (await res.json()) as string[][];
+  const rows = data.slice(1);
+  const latestRes = await fetch(
+    `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}&output=json&limit=3&fl=timestamp,original,statuscode&from=20200101&fastLatest=true`,
+    { headers: { "User-Agent": "swept-sentinel-osint" } },
+  );
+  const latestData = latestRes.ok ? ((await latestRes.json()) as string[][]).slice(1) : [];
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ARCHIVE DEPTH — executing on: ${domain}`,
+    `[QUERY] Wayback Machine CDX API — archive history depth`,
+  ];
+  if (rows.length === 0) {
+    lines.push(`[RESULT] no archive history found for this target`);
+  } else {
+    const earliest = rows[0];
+    const ts = earliest?.[0] ?? "";
+    const year = ts.slice(0, 4), month = ts.slice(4, 6), day = ts.slice(6, 8);
+    lines.push(`[RESULT] earliest snapshot: ${year}-${month}-${day} — ${earliest?.[1] ?? domain} (HTTP ${earliest?.[2] ?? "?"})`);
+    const ageYears = new Date().getFullYear() - parseInt(year || "2000");
+    lines.push(`[RESULT] domain age in archives: ~${ageYears} year${ageYears !== 1 ? "s" : ""}`);
+    lines.push(`[RESULT] earliest snapshots:`);
+    for (const r of rows.slice(0, 5)) {
+      const t = r[0] ?? ""; const y = t.slice(0,4), mo = t.slice(4,6), d = t.slice(6,8);
+      lines.push(`  [${y}-${mo}-${d}] ${r[1] ?? domain} — HTTP ${r[2] ?? "?"}`);
+    }
+  }
+  if (latestData.length) {
+    lines.push(`[RESULT] recent snapshots:`);
+    for (const r of latestData.slice(0, 3)) {
+      const t = r[0] ?? ""; const y = t.slice(0,4), mo = t.slice(4,6), d = t.slice(6,8);
+      lines.push(`  [${y}-${mo}-${d}] ${r[1] ?? domain} — HTTP ${r[2] ?? "?"}`);
+    }
+  }
+  lines.push(`[DONE] Archive depth lookup complete.`);
+  return lines;
+}
+
+async function fetchNpmAuditLines(moduleId: number, target: string): Promise<string[]> {
+  const pkg = target.trim().replace(/^https?:\/\/[^/]+\//, "").replace(/\/$/, "");
+  const res = await fetch(`https://registry.npmjs.org/${encodeURIComponent(pkg)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint", "Accept": "application/json" },
+  });
+  if (res.status === 404) {
+    return [
+      `[MODULE ${moduleId}] NPM AUDIT — executing on: ${pkg}`,
+      `[QUERY] npm registry package intelligence`,
+      `[RESULT] package not found on npm`,
+      `[DONE] npm audit complete.`,
+    ];
+  }
+  if (!res.ok) throw new Error(`npm registry responded with ${res.status}`);
+  const data = (await res.json()) as {
+    name?: string; description?: string; license?: string;
+    "dist-tags"?: Record<string, string>;
+    versions?: Record<string, unknown>;
+    time?: Record<string, string>;
+    homepage?: string; repository?: { url?: string };
+    bugs?: { url?: string };
+    keywords?: string[];
+    maintainers?: Array<{ name: string; email?: string }>;
+  };
+  const versions = Object.keys(data.versions ?? {});
+  const latest = data["dist-tags"]?.latest;
+  const times = data.time ?? {};
+  const created = times["created"]?.slice(0, 10);
+  const modified = times["modified"]?.slice(0, 10);
+  const lines: string[] = [
+    `[MODULE ${moduleId}] NPM AUDIT — executing on: ${pkg}`,
+    `[QUERY] npm registry package intelligence`,
+    `[RESULT] name: ${data.name ?? pkg}`,
+    `[RESULT] description: ${data.description ?? "none"}`,
+    `[RESULT] latest version: ${latest ?? "unknown"}`,
+    `[RESULT] total versions published: ${versions.length}`,
+    `[RESULT] license: ${data.license ?? "unspecified"}`,
+    `[RESULT] created: ${created ?? "unknown"}`,
+    `[RESULT] last modified: ${modified ?? "unknown"}`,
+    `[RESULT] keywords: ${data.keywords?.join(", ") ?? "none"}`,
+    `[RESULT] homepage: ${data.homepage ?? "none"}`,
+    `[RESULT] repository: ${data.repository?.url ?? "none"}`,
+    `[RESULT] maintainers: ${data.maintainers?.map((m) => m.name).join(", ") ?? "none"}`,
+  ];
+  if (latest && times[latest]) lines.push(`[RESULT] latest released: ${times[latest]?.slice(0, 10)}`);
+  const distTags = Object.entries(data["dist-tags"] ?? {});
+  if (distTags.length > 1) {
+    lines.push(`[RESULT] dist-tags:`);
+    for (const [tag, ver] of distTags) lines.push(`  [${tag}] ${ver}`);
+  }
+  lines.push(`[DONE] npm audit complete.`);
   return lines;
 }
 
@@ -1402,6 +1720,8 @@ async function runRealLookup(
       lines = await fetchDnsResolveLines(target);
     } else if (moduleId === 3) {
       lines = await fetchPortScanLines(target);
+    } else if (moduleId === 4) {
+      lines = await fetchAsnLookupLines(moduleId, target);
     } else if (moduleId === 5) {
       lines = await fetchWhoisLines(target);
     } else if (moduleId === 9) {
@@ -1420,6 +1740,14 @@ async function runRealLookup(
       lines = await fetchSiteEnumLines(moduleId, target);
     } else if (moduleId === 17) {
       lines = await fetchSubdomainScanLines(moduleId, target);
+    } else if (moduleId === 18) {
+      lines = await fetchDnsFullLines(moduleId, target);
+    } else if (moduleId === 19) {
+      lines = await fetchPageLinksLines(moduleId, target);
+    } else if (moduleId === 20) {
+      lines = await fetchSharedHostLines(moduleId, target);
+    } else if (moduleId === 21) {
+      lines = await fetchZoneTransferLines(moduleId, target);
     } else if (moduleId === 71) {
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 92) {
@@ -1448,6 +1776,10 @@ async function runRealLookup(
       lines = await fetchShodanProbeLines(moduleId, target);
     } else if (moduleId === 154) {
       lines = await fetchThreatIntelLines(moduleId, target);
+    } else if (moduleId === 155) {
+      lines = await fetchRipeStatLines(moduleId, target);
+    } else if (moduleId === 156) {
+      lines = await fetchDuckIntelLines(moduleId, target);
     } else if (moduleId === 201) {
       lines = await fetchBgpRouteLines(moduleId, target);
     } else if (moduleId === 207) {
@@ -1456,6 +1788,10 @@ async function runRealLookup(
       lines = await fetchTorCheckLines(moduleId, target);
     } else if (moduleId === 209) {
       lines = await fetchUrlScanLines(moduleId, target);
+    } else if (moduleId === 210) {
+      lines = await fetchArchiveDepthLines(moduleId, target);
+    } else if (moduleId === 211) {
+      lines = await fetchNpmAuditLines(moduleId, target);
     } else if (moduleId === 230) {
       lines = await fetchDmarcAnalyzeLines(moduleId, target);
     } else {
