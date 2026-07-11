@@ -1,0 +1,31 @@
+kind = "slides"
+previewPath = "/swept-sentinel-deck/"
+title = "Swept Sentinel Pitch Deck"
+version = "1.0.0"
+id = "artifacts/swept-sentinel-deck"
+router = "path"
+
+[[integratedSkills]]
+name = "slides"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/swept-sentinel-deck/" ]
+localPort = 18660
+
+[services.development]
+run = "pnpm --filter @workspace/swept-sentinel-deck run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/swept-sentinel-deck", "run", "build" ]
+publicDir = "artifacts/swept-sentinel-deck/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18660"
+BASE_PATH = "/swept-sentinel-deck/"
