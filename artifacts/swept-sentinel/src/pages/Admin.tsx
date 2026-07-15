@@ -7,7 +7,6 @@ import {
   useReviewSuggestion,
 } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { getAdminListSuggestionsQueryKey } from "@workspace/api-client-react";
 
@@ -228,28 +227,11 @@ function SuggestionsList() {
 type AdminView = "users" | "suggestions";
 
 export default function Admin() {
-  const { isAdmin, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const { data: users, isLoading } = useAdminListUsers();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<AdminView>("users");
-
-  if (authLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background text-primary/60 font-mono text-xs tracking-wider animate-pulse">
-        [AUTHENTICATING...]
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background text-red-400 font-mono text-xs tracking-wider">
-        [ACCESS DENIED] Admin clearance required.
-      </div>
-    );
-  }
 
   const userList = (users as AdminUserItem[] | undefined) ?? [];
 
