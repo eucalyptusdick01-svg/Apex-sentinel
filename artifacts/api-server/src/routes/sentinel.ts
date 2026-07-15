@@ -294,7 +294,8 @@ const REAL_LOOKUP_MODULES = new Set([
   65, 66, 67, 68, 69, 70, // REDIRECT CHAIN, COOKIE AUDIT, HEADER GRADE, HSTS, HTTP METHODS, HTTP2
   71,                  // VIN CHECK
   72,                  // CLICKJACK
-  82, 86, 87, 90,      // DOMAIN AGE, EMAIL VALIDATE, IPINFO FULL, TRACEROUTE SIM
+  79, 80,              // PHISH CHECK, MALWARE URL (VirusTotal)
+  82, 84, 85, 86, 87, 88, 90, // DOMAIN AGE, HONEYPOT, BLOCKLIST, EMAIL VALIDATE, IPINFO FULL, ABUSE IPDB, TRACEROUTE SIM
   92, 93, 94, 95, 96, 97, 98, 99, 100, // SSL, WAYBACK, HTTP FINGERPRINT, REVERSE IP, SUBDOMAIN, ADMIN, ROBOTS, API PROBE, CERT HISTORY
   // EXPLOIT (101-150)
   101, 102, 103,       // ENTROPY, STRING EXTRACT, FILE IDENT
@@ -304,6 +305,7 @@ const REAL_LOOKUP_MODULES = new Set([
   118,                 // BANNER GRAB
   // INTEL (151-200)
   151, 152, 153, 154, 155, 156, // CVE, MAC, SHODAN, THREAT INTEL, TOR, URL SCAN
+  181, 182, 183,                // BREACH INTEL, PASTE INTEL, DARK WEB INTEL (OTX)
   157, 158, 159, 160, 161,      // AES, RSA, PASSPHRASE, HMAC, HASH COMPARE
   162, 163, 165, 166,           // CIDR CALC, IP CONVERT, PORT REF, HTTP STATUS
   169, 170,                     // IOC EXTRACT, TYPOSQUAT
@@ -2089,6 +2091,205 @@ async function fetchShodanProbeLines(moduleId: number, target: string): Promise<
   return lines;
 }
 
+async function fetchAbuseIpDbLines(moduleId: number, target: string): Promise<string[]> {
+  const apiKey = process.env["ABUSEIPDB_API_KEY"];
+  if (!apiKey) throw new Error("ABUSEIPDB_API_KEY not configured");
+  let ip = target.trim();
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
+  if (!isIp) {
+    try { [ip] = await dns.resolve4(ip); }
+    catch { throw new Error(`could not resolve ${target} to an IP address`); }
+  }
+  const nameMap: Record<number, string> = { 84: "HONEYPOT CHECK", 85: "BLOCKLIST CHECK", 88: "ABUSE IPDB" };
+  const name = nameMap[moduleId] ?? "ABUSE IPDB";
+  const url = `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90&verbose`;
+  const res = await fetch(url, {
+    headers: { "Key": apiKey, "Accept": "application/json", "User-Agent": "swept-sentinel-osint" },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`AbuseIPDB responded with ${res.status}`);
+  const json = await res.json() as {
+    data: {
+      ipAddress: string; isWhitelisted: boolean; abuseConfidenceScore: number;
+      countryCode: string; usageType: string; isp: string; domain: string;
+      totalReports: number; numDistinctUsers: number; lastReportedAt: string | null;
+      reports?: Array<{ reportedAt: string; comment: string }>;
+    };
+  };
+  const d = json.data;
+  const score = d.abuseConfidenceScore;
+  const riskLevel = score >= 75 ? "CRITICAL" : score >= 50 ? "HIGH" : score >= 25 ? "MEDIUM" : score > 0 ? "LOW" : "CLEAN";
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ${name} — executing on: ${ip}`,
+    `[QUERY] AbuseIPDB — crowd-sourced IP abuse database (90-day window)`,
+    `[RESULT] ip: ${d.ipAddress}`,
+    `[RESULT] abuse confidence score: ${score}% — ${riskLevel}`,
+    `[RESULT] total reports: ${d.totalReports} from ${d.numDistinctUsers} distinct users`,
+    `[RESULT] country: ${d.countryCode}`,
+    `[RESULT] isp: ${d.isp}`,
+    `[RESULT] usage type: ${d.usageType ?? "unknown"}`,
+    `[RESULT] domain: ${d.domain ?? "unknown"}`,
+    `[RESULT] whitelisted: ${d.isWhitelisted ? "YES" : "NO"}`,
+    `[RESULT] last reported: ${d.lastReportedAt ?? "never"}`,
+  ];
+  if (moduleId === 84) {
+    const honeypot = score > 80 && d.totalReports > 10;
+    lines.push(`[ASSESSMENT] honeypot probability: ${honeypot ? "HIGH — dense reports suggest trap/honeypot IP" : score > 0 ? "LOW — some reports, not consistent with honeypot" : "UNLIKELY — zero abuse reports"}`);
+  } else if (moduleId === 85) {
+    lines.push(`[ASSESSMENT] blocklist status: ${score > 0 ? `LISTED — ${riskLevel} risk, ${d.totalReports} report(s)` : "CLEAN — not on AbuseIPDB blocklist"}`);
+  } else {
+    lines.push(`[ASSESSMENT] threat level: ${riskLevel}`);
+    if (d.reports && d.reports.length > 0) {
+      lines.push(`[REPORTS] recent abuse reports:`);
+      for (const r of d.reports.slice(0, 3)) {
+        lines.push(`  → ${r.reportedAt}: ${(r.comment ?? "(no comment)").slice(0, 120)}`);
+      }
+    }
+  }
+  lines.push(`[DONE] AbuseIPDB lookup complete.`);
+  return lines;
+}
+
+async function fetchVirusTotalLines(moduleId: number, target: string): Promise<string[]> {
+  const apiKey = process.env["VIRUSTOTAL_API_KEY"];
+  if (!apiKey) throw new Error("VIRUSTOTAL_API_KEY not configured");
+  const t = target.trim();
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(t);
+  const isUrl = t.startsWith("http://") || t.startsWith("https://");
+  const nameMap: Record<number, string> = { 79: "PHISH CHECK", 80: "MALWARE URL" };
+  const name = nameMap[moduleId] ?? "VIRUSTOTAL";
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ${name} — executing on: ${t}`,
+    `[QUERY] VirusTotal — 70+ engine threat intelligence`,
+  ];
+  let endpoint: string;
+  if (isIp) {
+    endpoint = `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(t)}`;
+    lines.push(`[INFO] checking IP reputation`);
+  } else if (isUrl) {
+    const urlId = Buffer.from(t).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    endpoint = `https://www.virustotal.com/api/v3/urls/${urlId}`;
+    lines.push(`[INFO] checking URL against phishing/malware databases`);
+  } else {
+    endpoint = `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(t)}`;
+    lines.push(`[INFO] checking domain reputation`);
+  }
+  const res = await fetch(endpoint, {
+    headers: { "x-apikey": apiKey, "User-Agent": "swept-sentinel-osint" },
+    signal: AbortSignal.timeout(12000),
+  });
+  if (res.status === 404) {
+    lines.push(`[RESULT] not found in VirusTotal — never scanned or no data`);
+    lines.push(`[ASSESSMENT] UNKNOWN — no scan data available`);
+    lines.push(`[DONE] VirusTotal check complete.`);
+    return lines;
+  }
+  if (!res.ok) throw new Error(`VirusTotal responded with ${res.status}`);
+  const json = await res.json() as {
+    data: {
+      attributes: {
+        last_analysis_stats?: { malicious: number; suspicious: number; harmless: number; undetected: number; timeout?: number };
+        last_analysis_date?: number;
+        reputation?: number;
+        country?: string;
+        as_owner?: string;
+        categories?: Record<string, string>;
+      };
+    };
+  };
+  const attrs = json.data.attributes;
+  const stats = attrs.last_analysis_stats;
+  if (stats) {
+    const total = stats.malicious + stats.suspicious + stats.harmless + stats.undetected + (stats.timeout ?? 0);
+    const riskLevel = stats.malicious >= 10 ? "CRITICAL" : stats.malicious >= 5 ? "HIGH" : stats.malicious >= 2 ? "MEDIUM" : stats.malicious === 1 || stats.suspicious > 0 ? "LOW" : "CLEAN";
+    lines.push(`[RESULT] engines checked: ${total}`);
+    lines.push(`[RESULT] malicious detections: ${stats.malicious}`);
+    lines.push(`[RESULT] suspicious: ${stats.suspicious}`);
+    lines.push(`[RESULT] harmless: ${stats.harmless}`);
+    lines.push(`[RESULT] undetected: ${stats.undetected}`);
+    lines.push(`[ASSESSMENT] ${riskLevel} — ${stats.malicious > 0 || stats.suspicious > 0 ? `${stats.malicious} malicious + ${stats.suspicious} suspicious` : "no detections"}`);
+  }
+  if (attrs.reputation !== undefined) lines.push(`[RESULT] community reputation: ${attrs.reputation}`);
+  if (attrs.country) lines.push(`[RESULT] country: ${attrs.country}`);
+  if (attrs.as_owner) lines.push(`[RESULT] network owner: ${attrs.as_owner}`);
+  if (attrs.categories) {
+    const cats = Object.values(attrs.categories).slice(0, 3).join(", ");
+    if (cats) lines.push(`[RESULT] categories: ${cats}`);
+  }
+  if (attrs.last_analysis_date) {
+    lines.push(`[RESULT] last scanned: ${new Date(attrs.last_analysis_date * 1000).toISOString().split("T")[0]}`);
+  }
+  lines.push(`[DONE] VirusTotal ${moduleId === 79 ? "phishing" : "malware"} check complete.`);
+  return lines;
+}
+
+async function fetchOtxLines(moduleId: number, target: string): Promise<string[]> {
+  const apiKey = process.env["OTX_API_KEY"];
+  if (!apiKey) throw new Error("OTX_API_KEY not configured");
+  const t = target.trim();
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(t);
+  const isUrl = t.startsWith("http://") || t.startsWith("https://");
+  const nameMap: Record<number, string> = { 181: "BREACH INTEL", 182: "PASTE INTEL", 183: "DARK WEB INTEL" };
+  const name = nameMap[moduleId] ?? "OTX INTEL";
+  let endpoint: string;
+  let label: string;
+  if (isIp) {
+    endpoint = `https://otx.alienvault.com/api/v1/indicators/IPv4/${encodeURIComponent(t)}/general`;
+    label = "IPv4";
+  } else if (isUrl) {
+    endpoint = `https://otx.alienvault.com/api/v1/indicators/url/${encodeURIComponent(t)}/general`;
+    label = "URL";
+  } else {
+    endpoint = `https://otx.alienvault.com/api/v1/indicators/domain/${encodeURIComponent(t)}/general`;
+    label = "domain";
+  }
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ${name} — executing on: ${t}`,
+    `[QUERY] AlienVault OTX — open threat exchange intelligence`,
+    `[INFO] querying ${label} indicators across global threat feeds`,
+  ];
+  const res = await fetch(endpoint, {
+    headers: { "X-OTX-API-KEY": apiKey, "User-Agent": "swept-sentinel-osint", "Accept": "application/json" },
+    signal: AbortSignal.timeout(25000),
+  });
+  if (!res.ok) throw new Error(`OTX responded with ${res.status}`);
+  const json = await res.json() as {
+    pulse_info?: {
+      count: number;
+      pulses: Array<{
+        name: string; tlp?: string; adversary?: string;
+        tags?: string[];
+        malware_families?: Array<{ display_name: string }>;
+        targeted_countries?: string[];
+      }>;
+    };
+    reputation?: number;
+    country_code?: string;
+    asn?: string;
+    city?: string;
+  };
+  const pulseCount = json.pulse_info?.count ?? 0;
+  const pulses = json.pulse_info?.pulses ?? [];
+  const riskLevel = pulseCount >= 20 ? "CRITICAL" : pulseCount >= 10 ? "HIGH" : pulseCount >= 3 ? "MEDIUM" : pulseCount >= 1 ? "LOW" : "CLEAN";
+  lines.push(`[RESULT] threat pulses found: ${pulseCount}`);
+  if (json.country_code) lines.push(`[RESULT] country: ${json.country_code}`);
+  if (json.asn) lines.push(`[RESULT] asn: ${json.asn}`);
+  if (json.city) lines.push(`[RESULT] city: ${json.city}`);
+  if (json.reputation !== undefined) lines.push(`[RESULT] reputation score: ${json.reputation}`);
+  lines.push(`[ASSESSMENT] OTX risk: ${riskLevel} — ${pulseCount > 0 ? `found in ${pulseCount} threat intelligence pulse(s)` : "no known threat associations"}`);
+  if (pulses.length > 0) {
+    lines.push(`[PULSES] top threat matches:`);
+    for (const p of pulses.slice(0, 5)) {
+      lines.push(`  → [${p.tlp ?? "WHITE"}] ${p.name}`);
+      if (p.adversary) lines.push(`     adversary: ${p.adversary}`);
+      if (p.malware_families && p.malware_families.length > 0) lines.push(`     malware: ${p.malware_families.map((m) => m.display_name).join(", ")}`);
+      if (p.tags && p.tags.length > 0) lines.push(`     tags: ${p.tags.slice(0, 5).join(", ")}`);
+    }
+  }
+  lines.push(`[DONE] OTX ${name.toLowerCase()} lookup complete.`);
+  return lines;
+}
+
 async function fetchThreatIntelLines(moduleId: number, target: string): Promise<string[]> {
   let ip = target.trim();
   const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
@@ -2786,6 +2987,16 @@ async function runRealLookup(
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 72) {
       lines = await runPyScript("clickjack_test.py", target, [`[MODULE 72] CLICKJACKING TEST — X-Frame-Options + CSP frame-ancestors`]);
+    } else if (moduleId === 79) {
+      lines = await fetchVirusTotalLines(moduleId, target);
+    } else if (moduleId === 80) {
+      lines = await fetchVirusTotalLines(moduleId, target);
+    } else if (moduleId === 84) {
+      lines = await fetchAbuseIpDbLines(moduleId, target);
+    } else if (moduleId === 85) {
+      lines = await fetchAbuseIpDbLines(moduleId, target);
+    } else if (moduleId === 88) {
+      lines = await fetchAbuseIpDbLines(moduleId, target);
     } else if (moduleId === 82) {
       lines = await runPyScript("domain_age.py", target, [`[MODULE 82] DOMAIN AGE — RDAP registration date + risk analysis`]);
     } else if (moduleId === 86) {
@@ -2848,6 +3059,12 @@ async function runRealLookup(
       lines = await fetchShodanProbeLines(moduleId, target);
     } else if (moduleId === 154) {
       lines = await fetchThreatIntelLines(moduleId, target);
+    } else if (moduleId === 181) {
+      lines = await fetchOtxLines(moduleId, target);
+    } else if (moduleId === 182) {
+      lines = await fetchOtxLines(moduleId, target);
+    } else if (moduleId === 183) {
+      lines = await fetchOtxLines(moduleId, target);
     } else if (moduleId === 155) {
       lines = await fetchRipeStatLines(moduleId, target);
     } else if (moduleId === 156) {
