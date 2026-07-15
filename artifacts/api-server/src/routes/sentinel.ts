@@ -187,7 +187,7 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   169: "IOC EXTRACT",
   170: "TYPOSQUAT",
   171: "DOMAIN GEN",
-  172: "CERT PARSE",
+  172: "WEB SCRAPER",
   173: "KEY STRENGTH",
   174: "CIPHER SUITE",
   175: "TLS ANALYZER",
@@ -317,7 +317,7 @@ const REAL_LOOKUP_MODULES = new Set([
   162, 163, 164, 165, 166,      // CIDR CALC, IP CONVERT, SUBNET CALC, PORT REF, HTTP STATUS
   167, 168,                     // EMAIL HEADER, USER AGENT
   169, 170,                     // IOC EXTRACT, TYPOSQUAT
-  171,                          // DOMAIN GEN
+  171, 172,                     // DOMAIN GEN, WEB SCRAPER
   176, 177,                     // DANE CHECK, SMTP TLS
   195,                          // LOG PARSE
   // ADVANCED (201-230)
@@ -3340,6 +3340,12 @@ async function runRealLookup(
       lines = await runPyScript("typosquat.py", target, [`[MODULE 170] TYPOSQUAT — generate + DNS-check domain typosquatting candidates`, `[INFO] format: google.com`]);
     } else if (moduleId === 171) {
       lines = await runPyScript("domain_gen.py", target, [`[MODULE 171] DOMAIN GENERATOR — DGA generation + lookalike/typosquat domains`, `[INFO] format: dga:seed:20  or  date:today  or  lookalike:google.com`]);
+    } else if (moduleId === 172) {
+      lines = await runPyScript("web_scrape.py", target, [
+        `[MODULE 172] WEB SCRAPER — clearnet + .onion (Tor) content extraction`,
+        `[INFO] format: https://example.com  or  example.com  or  http://site.onion`,
+        `[INFO] append mode: url all | url text | url links | url meta | url forms | url emails`,
+      ]);
     } else if (moduleId === 176) {
       lines = await runPyScript("dane_check.py", target, [`[MODULE 176] DANE CHECK — DNS TLSA record lookup + DNSSEC-based cert pinning`, `[INFO] format: example.com  or  mail.example.com:25`]);
     } else if (moduleId === 177) {
