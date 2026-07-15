@@ -24,12 +24,12 @@ args = "test:admin-access"
 name = "test:admin-access"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm --filter @workspace/swept-sentinel run test"
-
 [workflows.workflow.metadata]
 isValidation = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server run test"
 
 [agent]
 stack = "PNPM_WORKSPACE"
