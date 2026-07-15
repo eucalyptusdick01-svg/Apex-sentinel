@@ -294,26 +294,35 @@ const REAL_LOOKUP_MODULES = new Set([
   65, 66, 67, 68, 69, 70, // REDIRECT CHAIN, COOKIE AUDIT, HEADER GRADE, HSTS, HTTP METHODS, HTTP2
   71,                  // VIN CHECK
   72,                  // CLICKJACK
+  73, 74, 75, 76,      // OPEN REDIRECT, CORS WILDCARD, CONTENT SNIFF, XSS HEADERS
   79, 80,              // PHISH CHECK, MALWARE URL (VirusTotal)
-  82, 84, 85, 86, 87, 88, 90, // DOMAIN AGE, HONEYPOT, BLOCKLIST, EMAIL VALIDATE, IPINFO FULL, ABUSE IPDB, TRACEROUTE SIM
+  82, 83, 84, 85, 86, 87, 88, 89, 90, // DOMAIN AGE, BGP PREFIXES, HONEYPOT, BLOCKLIST, EMAIL VALIDATE, IPINFO FULL, ABUSE IPDB, OPEN RESOLVER, TRACEROUTE
   92, 93, 94, 95, 96, 97, 98, 99, 100, // SSL, WAYBACK, HTTP FINGERPRINT, REVERSE IP, SUBDOMAIN, ADMIN, ROBOTS, API PROBE, CERT HISTORY
   // EXPLOIT (101-150)
   101, 102, 103,       // ENTROPY, STRING EXTRACT, FILE IDENT
   104, 105, 106, 107, 108, 109, 110, 111, // BASE64, HEX, URL, HTML, ROT13, CAESAR, VIGENERE, MORSE
   112,                 // JWT DECODE
+  113, 114,            // JWT FORGE, HASH CRACK
   115,                 // WORDLIST GEN
+  116, 117,            // XSS PAYLOADS, SQLI PAYLOADS
   118,                 // BANNER GRAB
+  119, 120, 121, 122,  // FTP PROBE, SMTP PROBE, SSH FINGERPRINT, TELNET PROBE
   // INTEL (151-200)
-  151, 152, 153, 154, 155, 156, // CVE, MAC, SHODAN, THREAT INTEL, TOR, URL SCAN
+  147, 148,                     // NVD SEARCH, MITRE ATT&CK
+  151, 152, 153, 154, 155, 156, // CVE, MAC, SHODAN, THREAT INTEL, RIPE STAT, DUCK INTEL
   181, 182, 183,                // BREACH INTEL, PASTE INTEL, DARK WEB INTEL (OTX)
   180,                          // LEAK CHECK (leakcheck.io)
   184, 185, 186,                // FCC CALLSIGN, HAM LOOKUP, DMR LOOKUP
   157, 158, 159, 160, 161,      // AES, RSA, PASSPHRASE, HMAC, HASH COMPARE
-  162, 163, 165, 166,           // CIDR CALC, IP CONVERT, PORT REF, HTTP STATUS
+  162, 163, 164, 165, 166,      // CIDR CALC, IP CONVERT, SUBNET CALC, PORT REF, HTTP STATUS
+  167, 168,                     // EMAIL HEADER, USER AGENT
   169, 170,                     // IOC EXTRACT, TYPOSQUAT
+  171,                          // DOMAIN GEN
+  176, 177,                     // DANE CHECK, SMTP TLS
+  195,                          // LOG PARSE
   // ADVANCED (201-230)
   201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215,
-  216, 220, 221, 222, 225, 227, // JSON FORMAT, DATE CALC, UNIT CONVERT, COLOR CONVERT, NUM BASE, UNICODE INFO
+  216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, // ALL ADVANCED
   230,
 ]);
 
@@ -3179,6 +3188,14 @@ async function runRealLookup(
       lines = await fetchVinCheckLines(moduleId, target);
     } else if (moduleId === 72) {
       lines = await runPyScript("clickjack_test.py", target, [`[MODULE 72] CLICKJACKING TEST — X-Frame-Options + CSP frame-ancestors`]);
+    } else if (moduleId === 73) {
+      lines = await runPyScript("open_redirect.py", target, [`[MODULE 73] OPEN REDIRECT DETECTOR — HTTP redirect analysis`, `[INFO] format: https://example.com  or  example.com`]);
+    } else if (moduleId === 74) {
+      lines = await runPyScript("cors_wildcard.py", target, [`[MODULE 74] CORS WILDCARD CHECKER — OPTIONS probe + origin reflection test`]);
+    } else if (moduleId === 75) {
+      lines = await runPyScript("content_sniff.py", target, [`[MODULE 75] CONTENT SNIFF ANALYZER — MIME type + nosniff header check`]);
+    } else if (moduleId === 76) {
+      lines = await runPyScript("xss_headers.py", target, [`[MODULE 76] XSS HEADER ANALYZER — CSP + X-XSS-Protection + security header audit`]);
     } else if (moduleId === 79) {
       lines = await fetchVirusTotalLines(moduleId, target);
     } else if (moduleId === 80) {
@@ -3191,6 +3208,10 @@ async function runRealLookup(
       lines = await fetchAbuseIpDbLines(moduleId, target);
     } else if (moduleId === 82) {
       lines = await runPyScript("domain_age.py", target, [`[MODULE 82] DOMAIN AGE — RDAP registration date + risk analysis`]);
+    } else if (moduleId === 83) {
+      lines = await runPyScript("bgp_prefixes.py", target, [`[MODULE 83] BGP PREFIXES — RIPE Stat API prefix enumeration`, `[INFO] format: 8.8.8.8  or  AS15169  or  google.com`]);
+    } else if (moduleId === 89) {
+      lines = await runPyScript("open_resolver.py", target, [`[MODULE 89] OPEN RESOLVER CHECK — raw DNS UDP probe`, `[INFO] format: 8.8.8.8  or  192.168.1.1`]);
     } else if (moduleId === 86) {
       lines = await runPyScript("email_validate.py", target, [`[MODULE 86] EMAIL VALIDATE — syntax + MX + SMTP RCPT probe`]);
     } else if (moduleId === 87) {
@@ -3239,10 +3260,30 @@ async function runRealLookup(
       lines = await runPyScript("morse_code.py", target, [`[MODULE 111] MORSE CODE — encode/decode + NATO phonetic`, `[INFO] format: Hello World  or  dec:.... . .-.. .-.. ---`]);
     } else if (moduleId === 112) {
       lines = await runPyScript("jwt_decode.py", target, [`[MODULE 112] JWT DECODE — header/payload decode + security analysis`, `[INFO] format: eyJ...token  or  verify:SECRET:TOKEN`]);
+    } else if (moduleId === 113) {
+      lines = await runPyScript("jwt_forge.py", target, [`[MODULE 113] JWT FORGE — sign/forge JWTs, alg:none attack, claim modification`, `[INFO] format: sign:SECRET:{"sub":"admin"}  or  none:TOKEN  or  forge:TOKEN:{"role":"admin"}`]);
+    } else if (moduleId === 114) {
+      lines = await runPyScript("hash_crack.py", target, [`[MODULE 114] HASH CRACK — dictionary + rule-based hash cracking`, `[INFO] format: HASH_VALUE  or  md5:HASH  or  sha256:HASH`]);
     } else if (moduleId === 115) {
       lines = await runPyScript("wordlist_gen.py", target, [`[MODULE 115] WORDLIST GENERATOR — mutation-based wordlist`, `[INFO] format: password  or  leet:word  or  pin:4  or  combo:admin,2024,!`]);
+    } else if (moduleId === 116) {
+      lines = await runPyScript("xss_payloads.py", target, [`[MODULE 116] XSS PAYLOADS — context-aware payload library`, `[INFO] format: basic | filter_bypass | dom | exfil | polyglot | all`]);
+    } else if (moduleId === 117) {
+      lines = await runPyScript("sqli_payloads.py", target, [`[MODULE 117] SQLI PAYLOADS — SQL injection payload generator`, `[INFO] format: auth_bypass | union_select | blind | mysql | mssql | postgres | waf_bypass | all`]);
     } else if (moduleId === 118) {
       lines = await runPyScript("banner_grab.py", target, [`[MODULE 118] BANNER GRAB — TCP service banner retrieval`, `[INFO] format: host  or  host:port`]);
+    } else if (moduleId === 119) {
+      lines = await runPyScript("ftp_probe.py", target, [`[MODULE 119] FTP PROBE — banner + anonymous login + feature detection`, `[INFO] format: ftp.example.com  or  host:2121`]);
+    } else if (moduleId === 120) {
+      lines = await runPyScript("smtp_probe.py", target, [`[MODULE 120] SMTP PROBE — banner + EHLO + STARTTLS + open relay test`, `[INFO] format: mail.example.com  or  mail.example.com:587`]);
+    } else if (moduleId === 121) {
+      lines = await runPyScript("ssh_fingerprint.py", target, [`[MODULE 121] SSH FINGERPRINT — banner + KEX algorithms + weak cipher audit`, `[INFO] format: ssh.example.com  or  host:2222`]);
+    } else if (moduleId === 122) {
+      lines = await runPyScript("telnet_probe.py", target, [`[MODULE 122] TELNET PROBE — banner + device fingerprint + default credential test`, `[INFO] format: 192.168.1.1  or  router.local:23`]);
+    } else if (moduleId === 147) {
+      lines = await runPyScript("nvd_search.py", target, [`[MODULE 147] NVD SEARCH — NVD API v2 full-text CVE search`, `[INFO] format: apache log4j  or  CVE-2021-44228  or  nginx critical`]);
+    } else if (moduleId === 148) {
+      lines = await runPyScript("mitre_attack.py", target, [`[MODULE 148] MITRE ATT&CK — technique lookup + tactic search`, `[INFO] format: T1059  or  phishing  or  lateral movement  or  list`]);
     } else if (moduleId === 151) {
       lines = await fetchCveLookupLines(moduleId, target);
     } else if (moduleId === 152) {
@@ -3283,14 +3324,28 @@ async function runRealLookup(
       lines = await runPyScript("cidr_calc.py", target, [`[MODULE 162] CIDR CALCULATOR — network/subnet math`, `[INFO] format: 192.168.1.0/24  or  10.0.0.1/8`]);
     } else if (moduleId === 163) {
       lines = await runPyScript("ip_convert.py", target, [`[MODULE 163] IP CONVERTER — decimal/hex/binary/integer representations`, `[INFO] format: 1.2.3.4  or  int:16909060  or  hex:0x01020304  or  bin:...`]);
+    } else if (moduleId === 164) {
+      lines = await runPyScript("subnet_calc.py", target, [`[MODULE 164] SUBNET CALCULATOR — subnet splitting, VLSM, wildcard masks`, `[INFO] format: 192.168.1.0/24 split:4  or  192.168.1.0/24 hosts:50  or  vlsm:10.0.0.0:200,100,50`]);
     } else if (moduleId === 165) {
       lines = await runPyScript("port_reference.py", target, [`[MODULE 165] PORT REFERENCE — IANA port database lookup`, `[INFO] format: 80  or  ssh  or  all`]);
     } else if (moduleId === 166) {
       lines = await runPyScript("http_status.py", target, [`[MODULE 166] HTTP STATUS CODES — RFC status code reference`, `[INFO] format: 404  or  5xx  or  redirect  or  all`]);
+    } else if (moduleId === 167) {
+      lines = await runPyScript("email_header.py", target, [`[MODULE 167] EMAIL HEADER ANALYZER — RFC 5322 header parse + auth results + routing`, `[INFO] format: paste raw email headers  or  From: user@example.com`]);
+    } else if (moduleId === 168) {
+      lines = await runPyScript("user_agent.py", target, [`[MODULE 168] USER AGENT ANALYZER — browser/OS/device/bot detection + security flags`, `[INFO] format: paste a User-Agent string`]);
     } else if (moduleId === 169) {
       lines = await runPyScript("ioc_extract.py", target, [`[MODULE 169] IOC EXTRACTOR — extract IPs/domains/hashes/CVEs/ATT&CK IDs from text`, `[INFO] format: paste raw text with indicators`]);
     } else if (moduleId === 170) {
       lines = await runPyScript("typosquat.py", target, [`[MODULE 170] TYPOSQUAT — generate + DNS-check domain typosquatting candidates`, `[INFO] format: google.com`]);
+    } else if (moduleId === 171) {
+      lines = await runPyScript("domain_gen.py", target, [`[MODULE 171] DOMAIN GENERATOR — DGA generation + lookalike/typosquat domains`, `[INFO] format: dga:seed:20  or  date:today  or  lookalike:google.com`]);
+    } else if (moduleId === 176) {
+      lines = await runPyScript("dane_check.py", target, [`[MODULE 176] DANE CHECK — DNS TLSA record lookup + DNSSEC-based cert pinning`, `[INFO] format: example.com  or  mail.example.com:25`]);
+    } else if (moduleId === 177) {
+      lines = await runPyScript("smtp_tls.py", target, [`[MODULE 177] SMTP TLS PROBE — STARTTLS + cipher + cert analysis`, `[INFO] format: mail.example.com  or  mail.example.com:587`]);
+    } else if (moduleId === 195) {
+      lines = await runPyScript("log_parse.py", target, [`[MODULE 195] LOG PARSER — Apache/Nginx/syslog/auth.log parsing + attack detection`, `[INFO] format: paste log lines  or  attack:LOG_CONTENT`]);
     } else if (moduleId === 201) {
       lines = await fetchBgpRouteLines(moduleId, target);
     } else if (moduleId === 207) {
@@ -3323,16 +3378,32 @@ async function runRealLookup(
       lines = await fetchCodeStatsLines(moduleId, target);
     } else if (moduleId === 216) {
       lines = await runPyScript("json_format.py", target, [`[MODULE 216] JSON FORMAT — pretty-print, minify, validate, extract paths`, `[INFO] format: {"key":"val"}  or  min:JSON  or  get:.key:JSON  or  validate:JSON`]);
+    } else if (moduleId === 217) {
+      lines = await runPyScript("xml_parse.py", target, [`[MODULE 217] XML PARSER — parse, validate, XPath query, XXE risk detection`, `[INFO] format: <root>...</root>  or  xpath:EXPR:XML  or  pretty:XML`]);
+    } else if (moduleId === 218) {
+      lines = await runPyScript("yaml_valid.py", target, [`[MODULE 218] YAML VALIDATOR — parse, validate, type detection, sensitive data scan`, `[INFO] format: paste YAML content`]);
+    } else if (moduleId === 219) {
+      lines = await runPyScript("bin_convert.py", target, [`[MODULE 219] BINARY CONVERTER — text↔binary/hex/octal/decimal conversions + hex dump`, `[INFO] format: bin:Hello  or  hex:text  or  from_bin:01001000...  or  from_hex:48656c6c6f`]);
     } else if (moduleId === 220) {
       lines = await runPyScript("date_calc.py", target, [`[MODULE 220] DATE CALCULATOR — date math, business days, format conversion`, `[INFO] format: 2024-06-15  or  diff:DATE1:DATE2  or  add:90:DATE  or  today`]);
     } else if (moduleId === 221) {
       lines = await runPyScript("unit_convert.py", target, [`[MODULE 221] UNIT CONVERTER — length/weight/volume/speed/data/energy/temperature`, `[INFO] format: 100 km to miles  or  32 F to C  or  5 GB to MB`]);
     } else if (moduleId === 222) {
       lines = await runPyScript("color_convert.py", target, [`[MODULE 222] COLOR CONVERTER — HEX/RGB/HSL/HSV/CMYK + contrast ratio`, `[INFO] format: #FF5733  or  rgb:255,87,51  or  hsl:9,100,60  or  orange`]);
+    } else if (moduleId === 223) {
+      lines = await runPyScript("wordcount.py", target, [`[MODULE 223] WORDCOUNT — text statistics, frequency analysis, readability scores`, `[INFO] format: paste any text  or  freq:TEXT  or  read:TEXT`]);
+    } else if (moduleId === 224) {
+      lines = await runPyScript("text_diff.py", target, [`[MODULE 224] TEXT DIFF — side-by-side comparison, similarity ratio, unified diff`, `[INFO] format: text_a|||text_b  or  unified:A|||B  or  ratio:A|||B`]);
     } else if (moduleId === 225) {
       lines = await runPyScript("num_base.py", target, [`[MODULE 225] NUMBER BASE CONVERTER — decimal/hex/octal/binary/base-N`, `[INFO] format: 255  or  hex:FF  or  bin:11111111  or  fromto:16:10:FF`]);
+    } else if (moduleId === 226) {
+      lines = await runPyScript("ascii_table.py", target, [`[MODULE 226] ASCII TABLE — full ASCII/extended reference with search`, `[INFO] format: 65  or  space  or  all  or  ext`]);
     } else if (moduleId === 227) {
       lines = await runPyScript("unicode_info.py", target, [`[MODULE 227] UNICODE INFO — codepoint analysis, encodings, script detection`, `[INFO] format: A  or  hello  or  U+1F600  or  search:copyright`]);
+    } else if (moduleId === 228) {
+      lines = await runPyScript("cipher_ref.py", target, [`[MODULE 228] CIPHER REFERENCE — cryptographic algorithm guide with security status`, `[INFO] format: aes  or  rsa  or  broken  or  all`]);
+    } else if (moduleId === 229) {
+      lines = await runPyScript("port_scanner_plus.py", target, [`[MODULE 229] PORT SCANNER+ — enhanced TCP scan with service detection + banner grab`, `[INFO] format: 192.168.1.1  or  host:1-1024  or  host:22,80,443  or  host:top1000`]);
     } else if (moduleId === 230) {
       lines = await fetchDmarcAnalyzeLines(moduleId, target);
     } else {
