@@ -7,6 +7,8 @@ import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Admin from "@/pages/Admin";
+import Pricing from "@/pages/Pricing";
+import CheckoutSuccess from "@/pages/CheckoutSuccess";
 import { useEffect } from "react";
 import { useAuthMe } from "@workspace/api-client-react";
 
@@ -62,6 +64,8 @@ function Router() {
       <Route path="/admin">
         <ProtectedAdminRoute component={Admin} />
       </Route>
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/">
         <ProtectedRoute component={Dashboard} />
       </Route>
