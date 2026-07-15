@@ -17,6 +17,20 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+function pgCode(err: unknown): string | undefined {
+  return typeof err === "object" && err !== null && "code" in err
+    ? String((err as Record<string, unknown>).code)
+    : undefined;
+}
+
+function isPgUniqueViolation(err: unknown): boolean {
+  return pgCode(err) === "23505";
+}
+
+function isPgSerializationFailure(err: unknown): boolean {
+  return pgCode(err) === "40001";
+}
+
 router.post("/auth/register", async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -26,20 +40,40 @@ router.post("/auth/register", async (req, res) => {
 
   const { email, password } = parsed.data;
 
-  const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
-  if (existing.length > 0) {
-    res.status(409).json({ error: "Email already registered" });
-    return;
-  }
-
-  const userCount = await db.select({ count: count() }).from(usersTable);
-  const isFirstUser = (userCount[0]?.count ?? 0) === 0;
-
+  // Hash outside the transaction: bcrypt is CPU-bound and slow.
+  // Holding a DB connection open while it runs wastes pool capacity.
   const hashedPassword = await bcrypt.hash(password, 12);
-  const [user] = await db
-    .insert(usersTable)
-    .values({ email, hashedPassword, isAdmin: isFirstUser })
-    .returning();
+
+  let user: typeof usersTable.$inferSelect | undefined;
+  try {
+    // Wrap count + insert in a SERIALIZABLE transaction to eliminate the
+    // TOCTOU race where two concurrent requests both read count=0 and both
+    // set isAdmin=true. With serializable isolation, Postgres guarantees that
+    // only one concurrent transaction can commit if they read-write the same
+    // rows; the other is rolled back with code 40001 (serialization_failure).
+    [user] = await db.transaction(
+      async (tx) => {
+        const userCount = await tx.select({ count: count() }).from(usersTable);
+        const isFirstUser = (userCount[0]?.count ?? 0) === 0;
+        return tx
+          .insert(usersTable)
+          .values({ email, hashedPassword, isAdmin: isFirstUser })
+          .returning();
+      },
+      { isolationLevel: "serializable" },
+    );
+  } catch (err: unknown) {
+    if (isPgUniqueViolation(err)) {
+      res.status(409).json({ error: "Email already registered" });
+      return;
+    }
+    if (isPgSerializationFailure(err)) {
+      // Two concurrent registrations raced — the losing request should retry.
+      res.status(503).json({ error: "Please try again" });
+      return;
+    }
+    throw err;
+  }
 
   if (!user) {
     res.status(500).json({ error: "Failed to create user" });
@@ -51,10 +85,10 @@ router.post("/auth/register", async (req, res) => {
       res.status(500).json({ error: "Failed to establish session" });
       return;
     }
-    req.session.userId = user.id;
-    req.session.isAdmin = user.isAdmin;
-    req.session.email = user.email;
-    res.status(201).json({ id: user.id, email: user.email, isAdmin: user.isAdmin });
+    req.session.userId = user!.id;
+    req.session.isAdmin = user!.isAdmin;
+    req.session.email = user!.email;
+    res.status(201).json({ id: user!.id, email: user!.email, isAdmin: user!.isAdmin });
   });
 });
 
