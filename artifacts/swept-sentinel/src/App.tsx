@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,7 +10,7 @@ import Admin from "@/pages/Admin";
 import Pricing from "@/pages/Pricing";
 import CheckoutSuccess from "@/pages/CheckoutSuccess";
 import { useEffect } from "react";
-import { useAuthMe } from "@workspace/api-client-react";
+import { ProtectedRoute, ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,41 +20,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { data: user, isLoading, error } = useAuthMe();
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background text-primary/60 font-mono text-xs tracking-wider animate-pulse">
-        [INITIALIZING...]
-      </div>
-    );
-  }
-  if (!user || error) {
-    return <Redirect to="/login" />;
-  }
-  return <Component />;
-}
-
-function ProtectedAdminRoute({ component: Component }: { component: React.ComponentType }) {
-  const { data: user, isLoading, error } = useAuthMe();
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background text-primary/60 font-mono text-xs tracking-wider animate-pulse">
-        [INITIALIZING...]
-      </div>
-    );
-  }
-  if (!user || error) {
-    return <Redirect to="/login" />;
-  }
-  if (!user.isAdmin) {
-    return <Redirect to="/" />;
-  }
-  return <Component />;
-}
 
 function Router() {
   return (
