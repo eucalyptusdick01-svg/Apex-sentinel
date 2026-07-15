@@ -306,6 +306,7 @@ const REAL_LOOKUP_MODULES = new Set([
   // INTEL (151-200)
   151, 152, 153, 154, 155, 156, // CVE, MAC, SHODAN, THREAT INTEL, TOR, URL SCAN
   181, 182, 183,                // BREACH INTEL, PASTE INTEL, DARK WEB INTEL (OTX)
+  180,                          // LEAK CHECK (leakcheck.io)
   184, 185, 186,                // FCC CALLSIGN, HAM LOOKUP, DMR LOOKUP
   157, 158, 159, 160, 161,      // AES, RSA, PASSPHRASE, HMAC, HASH COMPARE
   162, 163, 165, 166,           // CIDR CALC, IP CONVERT, PORT REF, HTTP STATUS
@@ -2291,6 +2292,53 @@ async function fetchOtxLines(moduleId: number, target: string): Promise<string[]
   return lines;
 }
 
+async function fetchLeakCheckLines(moduleId: number, target: string): Promise<string[]> {
+  const query = target.trim();
+  const lines: string[] = [
+    `[MODULE ${moduleId}] LEAK CHECK — executing on: ${query}`,
+    `[QUERY] leakcheck.io — public breach + credential leak database`,
+    `[INFO] searching known data breaches and paste dumps for: ${query}`,
+  ];
+  const res = await fetch(`https://leakcheck.io/api/public?check=${encodeURIComponent(query)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint", "Accept": "application/json" },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`leakcheck.io responded with ${res.status}`);
+  const data = await res.json() as {
+    success?: boolean; found?: number;
+    fields?: string[];
+    sources?: Array<{ name?: string; date?: string }>;
+  };
+  if (!data.success) {
+    lines.push(`[RESULT] lookup failed or target not indexed`);
+    lines.push(`[DONE] leak check complete.`);
+    return lines;
+  }
+  const found = data.found ?? 0;
+  lines.push(`[RESULT] breach records found: ${found}`);
+  if (found === 0) {
+    lines.push(`[ASSESSMENT] no known leaks — target not found in indexed breach databases`);
+    lines.push(`[DONE] leak check complete.`);
+    return lines;
+  }
+  if (data.fields && data.fields.length > 0) {
+    lines.push(`[RESULT] exposed data types: ${data.fields.slice(0, 10).join(", ")}`);
+    const dangerous = data.fields.filter(f => ["password", "ssn", "dob", "ip", "phone", "address"].includes(f));
+    if (dangerous.length > 0) lines.push(`[ALERT] high-sensitivity fields exposed: ${dangerous.join(", ")}`);
+  }
+  const sources = data.sources ?? [];
+  lines.push(`[RESULT] breach sources (${Math.min(sources.length, 15)} of ${found}):`);
+  for (const s of sources.slice(0, 15)) {
+    const date = s.date ? ` [${s.date}]` : "";
+    lines.push(`  → ${s.name ?? "unknown"}${date}`);
+  }
+  if (found > 15) lines.push(`  … and ${found - 15} more sources`);
+  const risk = found > 100 ? "CRITICAL" : found > 20 ? "HIGH" : found > 5 ? "MEDIUM" : "LOW";
+  lines.push(`[ASSESSMENT] leak exposure: ${risk} — found in ${found} breach source(s)`);
+  lines.push(`[DONE] leak check complete.`);
+  return lines;
+}
+
 async function fetchFccCallsignLines(moduleId: number, target: string): Promise<string[]> {
   const callsign = target.trim().toUpperCase();
   const moduleName = moduleId === 184 ? "FCC CALLSIGN" : moduleId === 185 ? "HAM LOOKUP" : "DMR LOOKUP";
@@ -3209,6 +3257,8 @@ async function runRealLookup(
       lines = await fetchOtxLines(moduleId, target);
     } else if (moduleId === 183) {
       lines = await fetchOtxLines(moduleId, target);
+    } else if (moduleId === 180) {
+      lines = await fetchLeakCheckLines(moduleId, target);
     } else if (moduleId === 184) {
       lines = await fetchFccCallsignLines(moduleId, target);
     } else if (moduleId === 185) {
