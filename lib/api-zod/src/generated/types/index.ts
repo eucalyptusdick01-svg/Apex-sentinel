@@ -16,3 +16,6 @@ export * from './healthStatus';
 export * from './module';
 export * from './moduleInput';
 export * from './runRecord';
+export * from './suggestionInput';
+export * from './suggestionRecord';
+export * from './suggestionWithUser';

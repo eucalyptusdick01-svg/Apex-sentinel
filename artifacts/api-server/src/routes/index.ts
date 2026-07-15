@@ -3,6 +3,7 @@ import healthRouter from "./health";
 import sentinelRouter from "./sentinel";
 import authRouter from "./auth";
 import adminRouter from "./admin";
+import suggestionsRouter from "./suggestions";
 import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
@@ -14,5 +15,6 @@ router.use("/sentinel/modules", requireAuth);
 router.use("/sentinel/execute", requireAuth);
 router.use("/sentinel/stream", requireAuth);
 router.use(sentinelRouter);
+router.use(suggestionsRouter);
 
 export default router;

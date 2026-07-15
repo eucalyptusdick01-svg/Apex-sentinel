@@ -148,3 +148,44 @@ export const AdminGetRunResponse = zod.object({
 })
 
 
+/**
+ * @summary Submit a feature suggestion
+ */
+export const SubmitSuggestionBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string()
+})
+
+
+/**
+ * @summary List all suggestions (admin only)
+ */
+export const AdminListSuggestionsResponseItem = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "userEmail": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+export const AdminListSuggestionsResponse = zod.array(AdminListSuggestionsResponseItem)
+
+
+/**
+ * @summary Mark a suggestion as reviewed (admin only)
+ */
+export const ReviewSuggestionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReviewSuggestionResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+
+

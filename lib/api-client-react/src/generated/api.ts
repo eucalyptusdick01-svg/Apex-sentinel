@@ -29,7 +29,10 @@ import type {
   HealthStatus,
   Module,
   ModuleInput,
-  RunRecord
+  RunRecord,
+  SuggestionInput,
+  SuggestionRecord,
+  SuggestionWithUser
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -868,4 +871,222 @@ export function useAdminGetRun<TData = Awaited<ReturnType<typeof adminGetRun>>, 
 
 
 
+
+export const getSubmitSuggestionUrl = () => {
+
+
+
+
+  return `/api/suggestions`
+}
+
+/**
+ * @summary Submit a feature suggestion
+ */
+export const submitSuggestion = async (suggestionInput: SuggestionInput, options?: RequestInit): Promise<SuggestionRecord> => {
+
+  return customFetch<SuggestionRecord>(getSubmitSuggestionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      suggestionInput,)
+  }
+);}
+
+
+
+
+export const getSubmitSuggestionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitSuggestion>>, TError,{data: BodyType<SuggestionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitSuggestion>>, TError,{data: BodyType<SuggestionInput>}, TContext> => {
+
+const mutationKey = ['submitSuggestion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitSuggestion>>, {data: BodyType<SuggestionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitSuggestion(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof submitSuggestion>>>
+    export type SubmitSuggestionMutationBody = BodyType<SuggestionInput>
+    export type SubmitSuggestionMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Submit a feature suggestion
+ */
+export const useSubmitSuggestion = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitSuggestion>>, TError,{data: BodyType<SuggestionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitSuggestion>>,
+        TError,
+        {data: BodyType<SuggestionInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitSuggestionMutationOptions(options));
+    }
+
+export const getAdminListSuggestionsUrl = () => {
+
+
+
+
+  return `/api/suggestions`
+}
+
+/**
+ * @summary List all suggestions (admin only)
+ */
+export const adminListSuggestions = async ( options?: RequestInit): Promise<SuggestionWithUser[]> => {
+
+  return customFetch<SuggestionWithUser[]>(getAdminListSuggestionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListSuggestionsQueryKey = () => {
+    return [
+    `/api/suggestions`
+    ] as const;
+    }
+
+
+export const getAdminListSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof adminListSuggestions>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListSuggestionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListSuggestions>>> = ({ signal }) => adminListSuggestions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListSuggestions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListSuggestionsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListSuggestions>>>
+export type AdminListSuggestionsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List all suggestions (admin only)
+ */
+
+export function useAdminListSuggestions<TData = Awaited<ReturnType<typeof adminListSuggestions>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListSuggestionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getReviewSuggestionUrl = (id: string,) => {
+
+
+
+
+  return `/api/suggestions/${id}`
+}
+
+/**
+ * @summary Mark a suggestion as reviewed (admin only)
+ */
+export const reviewSuggestion = async (id: string, options?: RequestInit): Promise<SuggestionRecord> => {
+
+  return customFetch<SuggestionRecord>(getReviewSuggestionUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getReviewSuggestionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewSuggestion>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewSuggestion>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['reviewSuggestion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewSuggestion>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  reviewSuggestion(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof reviewSuggestion>>>
+
+    export type ReviewSuggestionMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Mark a suggestion as reviewed (admin only)
+ */
+export const useReviewSuggestion = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewSuggestion>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewSuggestion>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getReviewSuggestionMutationOptions(options));
+    }
 

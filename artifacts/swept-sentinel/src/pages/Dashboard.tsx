@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useListModules, useExecuteModule } from "@workspace/api-client-react";
 import ModuleGrid from "@/components/ModuleGrid";
 import ConsoleOutput from "@/components/ConsoleOutput";
+import SuggestionModal from "@/components/SuggestionModal";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -17,6 +18,7 @@ export default function Dashboard() {
     `${getTimestamp()} SYSTEM READY. ENTER TARGET DATA AND SELECT A MODULE.`,
   ]);
   const [consoleOpen, setConsoleOpen] = useState(true);
+  const [suggestionOpen, setSuggestionOpen] = useState(false);
   const [, navigate] = useLocation();
 
   const { data: modules, isLoading } = useListModules();
@@ -78,6 +80,12 @@ export default function Dashboard() {
                     [ADMIN]
                   </button>
                 )}
+                <button
+                  onClick={() => setSuggestionOpen(true)}
+                  className="text-primary/60 hover:text-primary tracking-widest border border-primary/20 px-2 py-1 hover:border-primary/50 transition-colors"
+                >
+                  [SUGGEST]
+                </button>
                 <span className="text-muted-foreground tracking-wider hidden sm:inline">
                   {user.email}
                 </span>
@@ -141,6 +149,11 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Suggestion Modal */}
+      {suggestionOpen && (
+        <SuggestionModal onClose={() => setSuggestionOpen(false)} />
+      )}
     </div>
   );
 }

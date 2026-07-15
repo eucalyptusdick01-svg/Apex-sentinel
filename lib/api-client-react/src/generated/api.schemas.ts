@@ -61,6 +61,30 @@ export interface RunRecord {
   finishedAt?: string | null;
 }
 
+export interface SuggestionInput {
+  title: string;
+  description: string;
+}
+
+export interface SuggestionRecord {
+  id: string;
+  userId: string;
+  title: string;
+  description: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface SuggestionWithUser {
+  id: string;
+  userId: string;
+  userEmail: string;
+  title: string;
+  description: string;
+  status: string;
+  createdAt: string;
+}
+
 export type AuthLogout200 = {
   ok: boolean;
 };

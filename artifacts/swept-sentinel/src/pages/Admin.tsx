@@ -3,9 +3,13 @@ import {
   useAdminListUsers,
   useAdminGetUserRuns,
   useAdminGetRun,
+  useAdminListSuggestions,
+  useReviewSuggestion,
 } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
+import { getAdminListSuggestionsQueryKey } from "@workspace/api-client-react";
 
 type AdminUserItem = {
   id: string;
@@ -24,6 +28,16 @@ type RunItem = {
   output: string;
   startedAt: string;
   finishedAt?: string | null;
+};
+
+type SuggestionItem = {
+  id: string;
+  userId: string;
+  userEmail: string;
+  title: string;
+  description: string;
+  status: string;
+  createdAt: string;
 };
 
 function RunDetail({ runId, onBack }: { runId: string; onBack: () => void }) {
@@ -125,12 +139,101 @@ function UserRuns({ userId, onBack, onRunClick }: { userId: string; onBack: () =
   );
 }
 
+function SuggestionsList() {
+  const { data: suggestions, isLoading } = useAdminListSuggestions();
+  const reviewSuggestion = useReviewSuggestion();
+  const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const list = (suggestions as SuggestionItem[] | undefined) ?? [];
+
+  const handleReview = (id: string) => {
+    reviewSuggestion.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          void queryClient.invalidateQueries({ queryKey: getAdminListSuggestionsQueryKey() });
+        },
+      },
+    );
+  };
+
+  if (isLoading) {
+    return <div className="text-primary/60 text-xs tracking-wider animate-pulse">[LOADING SUGGESTIONS...]</div>;
+  }
+
+  if (list.length === 0) {
+    return <div className="text-xs text-muted-foreground tracking-wider">[NO SUGGESTIONS SUBMITTED YET]</div>;
+  }
+
+  return (
+    <div className="border border-primary/20 overflow-hidden">
+      <table className="w-full text-xs font-mono">
+        <thead>
+          <tr className="bg-primary/10 border-b border-primary/20">
+            <th className="text-left px-3 py-2 text-primary/80 tracking-wider">USER</th>
+            <th className="text-left px-3 py-2 text-primary/80 tracking-wider">TITLE</th>
+            <th className="text-left px-3 py-2 text-primary/80 tracking-wider">DATE</th>
+            <th className="text-left px-3 py-2 text-primary/80 tracking-wider">STATUS</th>
+            <th className="text-left px-3 py-2 text-primary/80 tracking-wider"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((s, i) => (
+            <>
+              <tr
+                key={s.id}
+                className={`border-b border-border/50 hover:bg-primary/5 cursor-pointer ${i % 2 === 0 ? "" : "bg-card/30"}`}
+                onClick={() => setExpanded(expanded === s.id ? null : s.id)}
+              >
+                <td className="px-3 py-2 text-foreground/70 max-w-[140px] truncate">{s.userEmail}</td>
+                <td className="px-3 py-2 text-foreground/90 max-w-[200px] truncate">{s.title}</td>
+                <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                  {new Date(s.createdAt).toLocaleDateString()}
+                </td>
+                <td className="px-3 py-2">
+                  <span className={s.status === "reviewed" ? "text-[#00ff41]" : "text-yellow-400"}>
+                    {s.status.toUpperCase()}
+                  </span>
+                </td>
+                <td className="px-3 py-2">
+                  {s.status === "pending" && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleReview(s.id); }}
+                      disabled={reviewSuggestion.isPending}
+                      className="text-primary/70 hover:text-primary hover:underline tracking-wider disabled:opacity-40"
+                    >
+                      MARK REVIEWED
+                    </button>
+                  )}
+                </td>
+              </tr>
+              {expanded === s.id && (
+                <tr key={`${s.id}-detail`} className="border-b border-border/50 bg-black/20">
+                  <td colSpan={5} className="px-4 py-3">
+                    <div className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                      {s.description}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+type AdminView = "users" | "suggestions";
+
 export default function Admin() {
   const { isAdmin, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const { data: users, isLoading } = useAdminListUsers();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<AdminView>("users");
 
   if (authLoading) {
     return (
@@ -165,8 +268,39 @@ export default function Admin() {
         </button>
       </header>
 
+      {/* Tab nav */}
+      <div className="flex border-b border-border bg-card shrink-0">
+        <button
+          onClick={() => { setActiveView("users"); setSelectedUserId(null); setSelectedRunId(null); }}
+          className={`text-xs tracking-widest px-4 py-2 border-r border-border transition-colors ${
+            activeView === "users"
+              ? "text-primary bg-primary/10 border-b-2 border-b-primary"
+              : "text-muted-foreground hover:text-primary"
+          }`}
+        >
+          OPERATOR REGISTRY
+        </button>
+        <button
+          onClick={() => { setActiveView("suggestions"); setSelectedUserId(null); setSelectedRunId(null); }}
+          className={`text-xs tracking-widest px-4 py-2 transition-colors ${
+            activeView === "suggestions"
+              ? "text-primary bg-primary/10 border-b-2 border-b-primary"
+              : "text-muted-foreground hover:text-primary"
+          }`}
+        >
+          SUGGESTIONS
+        </button>
+      </div>
+
       <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-        {selectedRunId ? (
+        {activeView === "suggestions" ? (
+          <div className="flex flex-col gap-4">
+            <div className="text-xs text-muted-foreground tracking-wider mb-2">
+              SUGGESTION INBOX — feature requests from operators
+            </div>
+            <SuggestionsList />
+          </div>
+        ) : selectedRunId ? (
           <RunDetail runId={selectedRunId} onBack={() => setSelectedRunId(null)} />
         ) : selectedUserId ? (
           <UserRuns
