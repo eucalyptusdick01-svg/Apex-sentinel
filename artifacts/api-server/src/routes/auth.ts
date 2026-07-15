@@ -2,8 +2,9 @@ import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
-import { eq, count } from "drizzle-orm";
+import { eq, count, sql } from "drizzle-orm";
 import { z } from "zod";
+import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
@@ -15,6 +16,11 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().min(1),
   password: z.string().min(1),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
 });
 
 function pgCode(err: unknown): string | undefined {
@@ -88,6 +94,7 @@ router.post("/auth/register", async (req, res) => {
     req.session.userId = user!.id;
     req.session.isAdmin = user!.isAdmin;
     req.session.email = user!.email;
+    req.session.pwVersion = user!.pwVersion;
     res.status(201).json({ id: user!.id, email: user!.email, isAdmin: user!.isAdmin });
   });
 });
@@ -121,6 +128,7 @@ router.post("/auth/login", async (req, res) => {
     req.session.userId = user.id;
     req.session.isAdmin = user.isAdmin;
     req.session.email = user.email;
+    req.session.pwVersion = user.pwVersion;
     res.json({ id: user.id, email: user.email, isAdmin: user.isAdmin });
   });
 });
@@ -136,16 +144,55 @@ router.post("/auth/logout", (req, res) => {
   });
 });
 
-router.get("/auth/me", (req, res) => {
-  if (!req.session.userId) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
+router.get("/auth/me", requireAuth, (req, res) => {
   res.json({
     id: req.session.userId,
     email: req.session.email,
     isAdmin: req.session.isAdmin,
   });
+});
+
+router.patch("/auth/password", requireAuth, async (req, res) => {
+  const parsed = changePasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request — newPassword must be at least 8 characters" });
+    return;
+  }
+
+  const { currentPassword, newPassword } = parsed.data;
+  const userId = req.session.userId as string;
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const valid = await bcrypt.compare(currentPassword, user.hashedPassword);
+  if (!valid) {
+    res.status(401).json({ error: "Current password is incorrect" });
+    return;
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+  const [updated] = await db
+    .update(usersTable)
+    .set({
+      hashedPassword,
+      pwVersion: sql`${usersTable.pwVersion} + 1`,
+    })
+    .where(eq(usersTable.id, userId))
+    .returning({ pwVersion: usersTable.pwVersion });
+
+  if (!updated) {
+    res.status(500).json({ error: "Failed to update password" });
+    return;
+  }
+
+  req.session.pwVersion = updated.pwVersion;
+
+  res.json({ ok: true });
 });
 
 export default router;

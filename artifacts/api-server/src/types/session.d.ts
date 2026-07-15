@@ -5,5 +5,6 @@ declare module "express-session" {
     userId: string;
     isAdmin: boolean;
     email: string;
+    pwVersion: number;
   }
 }

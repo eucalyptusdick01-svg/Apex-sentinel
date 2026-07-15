@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 import express, { type Request, type Response, type NextFunction } from "express";
 
-const queryResultRef = vi.hoisted(() => ({ value: [] as unknown[] }));
+const dbCallQueue = vi.hoisted(() => ({ responses: [] as unknown[][] }));
 
 vi.mock("@workspace/db", () => {
   function makeBuilder(): any {
@@ -12,8 +12,9 @@ vi.mock("@workspace/db", () => {
         get(_target, prop) {
           if (typeof prop === "symbol") return undefined;
           if (prop === "then") {
+            const result = dbCallQueue.responses.shift() ?? [];
             return (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
-              Promise.resolve(queryResultRef.value).then(resolve, reject);
+              Promise.resolve(result).then(resolve, reject);
           }
           return () => makeBuilder();
         },
@@ -22,8 +23,14 @@ vi.mock("@workspace/db", () => {
   }
 
   return {
-    db: { select: () => makeBuilder() },
-    usersTable: { id: "users.id", email: "users.email", isAdmin: "users.isAdmin", createdAt: "users.createdAt" },
+    db: { select: () => makeBuilder(), update: () => makeBuilder() },
+    usersTable: {
+      id: "users.id",
+      email: "users.email",
+      isAdmin: "users.isAdmin",
+      pwVersion: "users.pwVersion",
+      createdAt: "users.createdAt",
+    },
     runsTable: { id: "runs.id", userId: "runs.userId", startedAt: "runs.startedAt" },
     pool: { query: () => Promise.resolve({ rows: [] }) },
   };
@@ -48,6 +55,8 @@ const MOCK_RUNS = [
   { id: "run-2", userId: "user-1", target: "1.1.1.1", moduleId: 2, startedAt: new Date("2026-01-11") },
 ];
 
+const VALID_PW_VERSION = [{ pwVersion: 1 }];
+
 function buildTestApp(sessionOverrides: Record<string, unknown> = {}) {
   const app = express();
   app.use(express.json());
@@ -57,6 +66,7 @@ function buildTestApp(sessionOverrides: Record<string, unknown> = {}) {
       session: {
         userId: undefined,
         isAdmin: undefined,
+        pwVersion: undefined,
         ...sessionOverrides,
         save: (cb?: (err?: unknown) => void) => { cb?.(); },
         destroy: (cb?: (err?: unknown) => void) => { cb?.(); },
@@ -76,9 +86,13 @@ function buildTestApp(sessionOverrides: Record<string, unknown> = {}) {
   return app;
 }
 
+function authedSession(extra: Record<string, unknown> = {}) {
+  return { userId: "admin-1", isAdmin: true, pwVersion: 1, ...extra };
+}
+
 describe("Admin API — /api/admin/* access control", () => {
   beforeEach(() => {
-    queryResultRef.value = [];
+    dbCallQueue.responses = [];
     vi.clearAllMocks();
   });
 
@@ -91,15 +105,16 @@ describe("Admin API — /api/admin/* access control", () => {
     });
 
     it("returns 403 when session belongs to a non-admin user", async () => {
-      const app = buildTestApp({ userId: "user-1", isAdmin: false });
+      dbCallQueue.responses = [VALID_PW_VERSION];
+      const app = buildTestApp({ userId: "user-1", isAdmin: false, pwVersion: 1 });
       const res = await request(app).get("/api/admin/users");
       expect(res.status).toBe(403);
       expect(res.body).toMatchObject({ error: "Forbidden" });
     });
 
     it("returns 200 with user list when the session belongs to an admin", async () => {
-      queryResultRef.value = MOCK_USERS;
-      const app = buildTestApp({ userId: "admin-1", isAdmin: true });
+      dbCallQueue.responses = [VALID_PW_VERSION, MOCK_USERS];
+      const app = buildTestApp(authedSession());
       const res = await request(app).get("/api/admin/users");
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
@@ -117,15 +132,16 @@ describe("Admin API — /api/admin/* access control", () => {
     });
 
     it("returns 403 when session belongs to a non-admin user", async () => {
-      const app = buildTestApp({ userId: "user-1", isAdmin: false });
+      dbCallQueue.responses = [VALID_PW_VERSION];
+      const app = buildTestApp({ userId: "user-1", isAdmin: false, pwVersion: 1 });
       const res = await request(app).get("/api/admin/users/user-1/runs");
       expect(res.status).toBe(403);
       expect(res.body).toMatchObject({ error: "Forbidden" });
     });
 
     it("returns 200 with run list when the session belongs to an admin", async () => {
-      queryResultRef.value = MOCK_RUNS;
-      const app = buildTestApp({ userId: "admin-1", isAdmin: true });
+      dbCallQueue.responses = [VALID_PW_VERSION, MOCK_RUNS];
+      const app = buildTestApp(authedSession());
       const res = await request(app).get("/api/admin/users/user-1/runs");
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
@@ -143,23 +159,24 @@ describe("Admin API — /api/admin/* access control", () => {
     });
 
     it("returns 403 when session belongs to a non-admin user", async () => {
-      const app = buildTestApp({ userId: "user-1", isAdmin: false });
+      dbCallQueue.responses = [VALID_PW_VERSION];
+      const app = buildTestApp({ userId: "user-1", isAdmin: false, pwVersion: 1 });
       const res = await request(app).get("/api/admin/runs/run-1");
       expect(res.status).toBe(403);
       expect(res.body).toMatchObject({ error: "Forbidden" });
     });
 
     it("returns 200 with the run when the session belongs to an admin", async () => {
-      queryResultRef.value = [MOCK_RUNS[0]];
-      const app = buildTestApp({ userId: "admin-1", isAdmin: true });
+      dbCallQueue.responses = [VALID_PW_VERSION, [MOCK_RUNS[0]]];
+      const app = buildTestApp(authedSession());
       const res = await request(app).get("/api/admin/runs/run-1");
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({ id: "run-1", userId: "user-1" });
     });
 
     it("returns 404 when the admin queries a run that does not exist", async () => {
-      queryResultRef.value = [];
-      const app = buildTestApp({ userId: "admin-1", isAdmin: true });
+      dbCallQueue.responses = [VALID_PW_VERSION, []];
+      const app = buildTestApp(authedSession());
       const res = await request(app).get("/api/admin/runs/nonexistent-run");
       expect(res.status).toBe(404);
       expect(res.body).toMatchObject({ error: "Run not found" });
@@ -167,45 +184,65 @@ describe("Admin API — /api/admin/* access control", () => {
   });
 
   describe("requireAdmin middleware — direct unit verification", () => {
-    it("blocks unauthenticated requests with 401 (no userId in session)", () => {
-      const req = { session: {} } as Request;
+    it("blocks unauthenticated requests with 401 (no userId in session)", async () => {
+      const req = {
+        session: {
+          destroy: (cb?: (err?: unknown) => void) => { cb?.(); },
+        },
+      } as unknown as Request;
       const res = {
         status: vi.fn().mockReturnThis(),
         json: vi.fn().mockReturnThis(),
       } as unknown as Response;
       const next = vi.fn() as NextFunction;
 
-      requireAdmin(req, res, next);
+      await requireAdmin(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
       expect(next).not.toHaveBeenCalled();
     });
 
-    it("blocks authenticated non-admin with 403 (userId set, isAdmin falsy)", () => {
-      const req = { session: { userId: "user-1", isAdmin: false } } as unknown as Request;
+    it("blocks authenticated non-admin with 403 (userId set, isAdmin falsy)", async () => {
+      dbCallQueue.responses = [VALID_PW_VERSION];
+      const req = {
+        session: {
+          userId: "user-1",
+          isAdmin: false,
+          pwVersion: 1,
+          destroy: (cb?: (err?: unknown) => void) => { cb?.(); },
+        },
+      } as unknown as Request;
       const res = {
         status: vi.fn().mockReturnThis(),
         json: vi.fn().mockReturnThis(),
       } as unknown as Response;
       const next = vi.fn() as NextFunction;
 
-      requireAdmin(req, res, next);
+      await requireAdmin(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({ error: "Forbidden" });
       expect(next).not.toHaveBeenCalled();
     });
 
-    it("passes authenticated admin through to the next handler", () => {
-      const req = { session: { userId: "admin-1", isAdmin: true } } as unknown as Request;
+    it("passes authenticated admin through to the next handler", async () => {
+      dbCallQueue.responses = [VALID_PW_VERSION];
+      const req = {
+        session: {
+          userId: "admin-1",
+          isAdmin: true,
+          pwVersion: 1,
+          destroy: (cb?: (err?: unknown) => void) => { cb?.(); },
+        },
+      } as unknown as Request;
       const res = {
         status: vi.fn().mockReturnThis(),
         json: vi.fn().mockReturnThis(),
       } as unknown as Response;
       const next = vi.fn() as NextFunction;
 
-      requireAdmin(req, res, next);
+      await requireAdmin(req, res, next);
 
       expect(next).toHaveBeenCalledOnce();
       expect(res.status).not.toHaveBeenCalled();
