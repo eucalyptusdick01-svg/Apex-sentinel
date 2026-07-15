@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { Module } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { Module } from "@workspace/api-client-react";
 
 interface ModuleGridProps {
   modules?: Module[];

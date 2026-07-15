@@ -1,2 +1,3 @@
 - [Free OSINT/network APIs reachability](free-osint-apis.md) — which no-key public APIs work vs. are DNS-blocked in this Replit sandbox network.
 - [Swept Sentinel module status](swept-sentinel-modules.md) — 128 real modules wired, 102 simulated; all dispatch cases in sentinel.ts.
+- [Auth & Session quirks](auth-session-quirks.md) — bcryptjs (not bcrypt), connect-pg-simple table.sql esbuild issue, Express 5 params casting, React Query retry blocking redirect.

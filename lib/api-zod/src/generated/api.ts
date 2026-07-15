@@ -54,3 +54,97 @@ export const ListModulesResponseItem = zod.object({
 export const ListModulesResponse = zod.array(ListModulesResponseItem)
 
 
+/**
+ * @summary Register a new user
+ */
+export const AuthRegisterBody = zod.object({
+  "email": zod.string(),
+  "password": zod.string()
+})
+
+
+/**
+ * @summary Log in
+ */
+export const AuthLoginBody = zod.object({
+  "email": zod.string(),
+  "password": zod.string()
+})
+
+export const AuthLoginResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "isAdmin": zod.boolean()
+})
+
+
+/**
+ * @summary Log out
+ */
+export const AuthLogoutResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Get current user
+ */
+export const AuthMeResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "isAdmin": zod.boolean()
+})
+
+
+/**
+ * @summary List all users with run counts
+ */
+export const AdminListUsersResponseItem = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "isAdmin": zod.boolean(),
+  "createdAt": zod.string(),
+  "runCount": zod.number()
+})
+export const AdminListUsersResponse = zod.array(AdminListUsersResponseItem)
+
+
+/**
+ * @summary Get runs for a specific user
+ */
+export const AdminGetUserRunsParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const AdminGetUserRunsResponseItem = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "target": zod.string(),
+  "moduleId": zod.number(),
+  "moduleName": zod.string(),
+  "output": zod.string(),
+  "startedAt": zod.string(),
+  "finishedAt": zod.string().nullish()
+})
+export const AdminGetUserRunsResponse = zod.array(AdminGetUserRunsResponseItem)
+
+
+/**
+ * @summary Get a specific run with full output
+ */
+export const AdminGetRunParams = zod.object({
+  "runId": zod.coerce.string()
+})
+
+export const AdminGetRunResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "target": zod.string(),
+  "moduleId": zod.number(),
+  "moduleName": zod.string(),
+  "output": zod.string(),
+  "startedAt": zod.string(),
+  "finishedAt": zod.string().nullish()
+})
+
+

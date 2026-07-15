@@ -6,8 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminUser';
+export * from './authCredentials';
+export * from './authLogout200';
+export * from './authUser';
 export * from './errorResponse';
 export * from './executeResult';
 export * from './healthStatus';
 export * from './module';
 export * from './moduleInput';
+export * from './runRecord';

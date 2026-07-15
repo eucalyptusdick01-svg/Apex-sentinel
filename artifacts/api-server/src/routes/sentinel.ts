@@ -10,6 +10,8 @@ import {
   ExecuteModuleBody,
   StreamOutputParams,
 } from "@workspace/api-zod";
+import { db, runsTable } from "@workspace/db";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -275,6 +277,7 @@ const activeRuns = new Map<string, {
   lines: string[];
   done: boolean;
   listeners: Array<(line: string) => void>;
+  onFinish?: () => void;
 }>();
 
 const REAL_LOOKUP_MODULES = new Set([
@@ -325,11 +328,12 @@ function emitLine(
 }
 
 function finishRun(
-  runState: { lines: string[]; done: boolean; listeners: Array<(line: string) => void> },
+  runState: { lines: string[]; done: boolean; listeners: Array<(line: string) => void>; onFinish?: () => void },
   runId: string,
 ): void {
   runState.done = true;
   runState.listeners = [];
+  runState.onFinish?.();
   setTimeout(() => activeRuns.delete(runId), 60_000);
 }
 
@@ -2939,7 +2943,33 @@ router.post("/sentinel/execute", (req, res) => {
 
   const { moduleId, target } = parsed.data;
   const runId = randomUUID();
-  const runState = { lines: [] as string[], done: false, listeners: [] as Array<(line: string) => void> };
+  const userId = req.session.userId;
+  const moduleName = getModuleName(moduleId);
+  const startedAt = new Date();
+
+  const saveRun = (lines: string[]) => {
+    if (!userId) return;
+    const output = lines.join("\n");
+    db.insert(runsTable).values({
+      userId,
+      target,
+      moduleId,
+      moduleName,
+      output,
+      startedAt,
+      finishedAt: new Date(),
+    }).catch((err: unknown) => {
+      logger.error({ err }, "Failed to save run to DB");
+    });
+  };
+
+  const runState = {
+    lines: [] as string[],
+    done: false,
+    listeners: [] as Array<(line: string) => void>,
+    onFinish: undefined as (() => void) | undefined,
+  };
+  runState.onFinish = () => saveRun(runState.lines);
   activeRuns.set(runId, runState);
 
   const sentinelPath = path.resolve(process.cwd(), "swept_sentinel.py");
@@ -2985,6 +3015,7 @@ router.post("/sentinel/execute", (req, res) => {
       }
       runState.done = true;
       runState.listeners = [];
+      runState.onFinish?.();
       setTimeout(() => activeRuns.delete(runId), 60_000);
     });
 
@@ -2996,11 +3027,12 @@ router.post("/sentinel/execute", (req, res) => {
       }
       runState.done = true;
       runState.listeners = [];
+      runState.onFinish?.();
       setTimeout(() => activeRuns.delete(runId), 60_000);
     });
   } else {
     const stub = [
-      `[MODULE ${moduleId}] ${getModuleName(moduleId)} — executing on: ${target}`,
+      `[MODULE ${moduleId}] ${moduleName} — executing on: ${target}`,
       `[INFO] swept_sentinel.py not found at project root.`,
       `[INFO] Drop your swept_sentinel.py file into the project root to enable real execution.`,
       `[INFO] The module will read stdin: first line = module number, second line = target.`,
@@ -3010,6 +3042,7 @@ router.post("/sentinel/execute", (req, res) => {
       runState.lines.push(line);
     }
     runState.done = true;
+    runState.onFinish?.();
     setTimeout(() => activeRuns.delete(runId), 60_000);
   }
 

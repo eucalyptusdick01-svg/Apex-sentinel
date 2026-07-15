@@ -31,3 +31,37 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface AuthCredentials {
+  email: string;
+  password: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  isAdmin: boolean;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  isAdmin: boolean;
+  createdAt: string;
+  runCount: number;
+}
+
+export interface RunRecord {
+  id: string;
+  userId: string;
+  target: string;
+  moduleId: number;
+  moduleName: string;
+  output: string;
+  startedAt: string;
+  finishedAt?: string | null;
+}
+
+export type AuthLogout200 = {
+  ok: boolean;
+};
+
