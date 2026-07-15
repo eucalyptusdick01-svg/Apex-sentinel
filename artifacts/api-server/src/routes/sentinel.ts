@@ -199,9 +199,9 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   181: "BREACH INTEL",
   182: "PASTE INTEL",
   183: "DARK WEB INTEL",
-  184: "OSINT REPORT",
-  185: "LINK ANALYSIS",
-  186: "PAYLOAD ENCODE",
+  184: "FCC CALLSIGN",
+  185: "HAM LOOKUP",
+  186: "DMR LOOKUP",
   187: "STEG DETECT",
   188: "METADATA STRIP",
   189: "IMAGE EXIF",
@@ -306,6 +306,7 @@ const REAL_LOOKUP_MODULES = new Set([
   // INTEL (151-200)
   151, 152, 153, 154, 155, 156, // CVE, MAC, SHODAN, THREAT INTEL, TOR, URL SCAN
   181, 182, 183,                // BREACH INTEL, PASTE INTEL, DARK WEB INTEL (OTX)
+  184, 185, 186,                // FCC CALLSIGN, HAM LOOKUP, DMR LOOKUP
   157, 158, 159, 160, 161,      // AES, RSA, PASSPHRASE, HMAC, HASH COMPARE
   162, 163, 165, 166,           // CIDR CALC, IP CONVERT, PORT REF, HTTP STATUS
   169, 170,                     // IOC EXTRACT, TYPOSQUAT
@@ -2290,6 +2291,149 @@ async function fetchOtxLines(moduleId: number, target: string): Promise<string[]
   return lines;
 }
 
+async function fetchFccCallsignLines(moduleId: number, target: string): Promise<string[]> {
+  const callsign = target.trim().toUpperCase();
+  const moduleName = moduleId === 184 ? "FCC CALLSIGN" : moduleId === 185 ? "HAM LOOKUP" : "DMR LOOKUP";
+  const lines: string[] = [
+    `[MODULE ${moduleId}] ${moduleName} — executing on: ${callsign}`,
+    `[QUERY] callook.info — FCC Universal Licensing System via ham radio callsign database`,
+    `[INFO] looking up FCC license record for callsign: ${callsign}`,
+  ];
+  const res = await fetch(`https://callook.info/${encodeURIComponent(callsign)}/json`, {
+    headers: { "User-Agent": "swept-sentinel-osint", "Accept": "application/json" },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`callook.info responded with ${res.status}`);
+  const data = await res.json() as {
+    status?: string;
+    type?: string;
+    current?: { callsign?: string; operClass?: string };
+    previous?: { callsign?: string; operClass?: string };
+    trustee?: { callsign?: string; name?: string };
+    name?: { first?: string; mi?: string; last?: string; full?: string } | string;
+    address?: { line1?: string; line2?: string; attn?: string };
+    location?: { latitude?: string; longitude?: string; gridsquare?: string };
+    otherInfo?: { grantDate?: string; expiryDate?: string; lastActionDate?: string; frn?: string; ulsUrl?: string };
+  };
+  if (data.status !== "VALID") {
+    lines.push(`[RESULT] status: ${data.status ?? "UNKNOWN"}`);
+    lines.push(`[ASSESSMENT] no active FCC license found for callsign: ${callsign}`);
+    lines.push(`[DONE] FCC callsign lookup complete.`);
+    return lines;
+  }
+  const fullName = typeof data.name === "object" ? (data.name?.full ?? [data.name?.first, data.name?.mi, data.name?.last].filter(Boolean).join(" ")) : (data.name ?? "");
+  lines.push(`[RESULT] status: VALID`);
+  lines.push(`[RESULT] callsign: ${data.current?.callsign ?? callsign}`);
+  lines.push(`[RESULT] license class: ${data.current?.operClass ?? "unknown"}`);
+  lines.push(`[RESULT] type: ${data.type ?? "unknown"}`);
+  if (fullName) lines.push(`[RESULT] licensee: ${fullName}`);
+  if (data.address?.attn) lines.push(`[RESULT] attn: ${data.address.attn}`);
+  if (data.address?.line1) lines.push(`[RESULT] address: ${data.address.line1}`);
+  if (data.address?.line2) lines.push(`[RESULT] city/state/zip: ${data.address.line2}`);
+  if (data.location?.latitude && data.location?.longitude) {
+    lines.push(`[RESULT] coordinates: ${data.location.latitude}, ${data.location.longitude}`);
+    lines.push(`[RESULT] grid square: ${data.location.gridsquare ?? "N/A"}`);
+  }
+  if (data.otherInfo?.grantDate) lines.push(`[RESULT] grant date: ${data.otherInfo.grantDate}`);
+  if (data.otherInfo?.expiryDate) lines.push(`[RESULT] expiry date: ${data.otherInfo.expiryDate}`);
+  if (data.otherInfo?.frn) lines.push(`[RESULT] FCC registration number: ${data.otherInfo.frn}`);
+  if (data.previous?.callsign) lines.push(`[RESULT] previous callsign: ${data.previous.callsign} (${data.previous.operClass ?? "unknown class"})`);
+  if (data.trustee?.callsign) lines.push(`[RESULT] trustee callsign: ${data.trustee.callsign} — ${data.trustee.name ?? ""}`);
+  if (data.otherInfo?.ulsUrl) lines.push(`[RESULT] uls record: ${data.otherInfo.ulsUrl}`);
+  lines.push(`[DONE] FCC callsign lookup complete.`);
+  return lines;
+}
+
+async function fetchHamDbLines(moduleId: number, target: string): Promise<string[]> {
+  const callsign = target.trim().toUpperCase();
+  const lines: string[] = [
+    `[MODULE ${moduleId}] HAM LOOKUP — executing on: ${callsign}`,
+    `[QUERY] hamdb.org — amateur radio callsign database (FCC mirror + international)`,
+    `[INFO] looking up ham radio operator record for: ${callsign}`,
+  ];
+  const res = await fetch(`https://api.hamdb.org/v1/${encodeURIComponent(callsign)}/json/swept-sentinel`, {
+    headers: { "User-Agent": "swept-sentinel-osint", "Accept": "application/json" },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`hamdb.org responded with ${res.status}`);
+  const data = await res.json() as {
+    hamdb?: {
+      version?: string;
+      callsign?: {
+        call?: string; class?: string; expires?: string; status?: string;
+        grid?: string; lat?: string; lon?: string;
+        fname?: string; mi?: string; name?: string; suffix?: string;
+        addr1?: string; addr2?: string; state?: string; zip?: string; country?: string;
+      };
+      messages?: { status?: string };
+    };
+  };
+  const rec = data.hamdb?.callsign;
+  const status = data.hamdb?.messages?.status ?? "UNKNOWN";
+  if (status !== "OK" || !rec?.call) {
+    lines.push(`[RESULT] status: ${status}`);
+    lines.push(`[ASSESSMENT] no amateur radio record found for callsign: ${callsign}`);
+    lines.push(`[DONE] ham radio lookup complete.`);
+    return lines;
+  }
+  lines.push(`[RESULT] callsign: ${rec.call}`);
+  lines.push(`[RESULT] license class: ${rec.class || "unknown"}`);
+  lines.push(`[RESULT] status: ${rec.status || "unknown"}`);
+  lines.push(`[RESULT] expires: ${rec.expires || "unknown"}`);
+  const name = [rec.fname, rec.mi, rec.name, rec.suffix].filter(Boolean).join(" ");
+  if (name) lines.push(`[RESULT] operator: ${name}`);
+  if (rec.addr1) lines.push(`[RESULT] address: ${rec.addr1}`);
+  if (rec.addr2 || rec.state) lines.push(`[RESULT] city/state: ${[rec.addr2, rec.state, rec.zip].filter(Boolean).join(", ")}`);
+  if (rec.country) lines.push(`[RESULT] country: ${rec.country}`);
+  if (rec.lat && rec.lon) lines.push(`[RESULT] coordinates: ${rec.lat}, ${rec.lon}`);
+  if (rec.grid) lines.push(`[RESULT] maidenhead grid: ${rec.grid}`);
+  lines.push(`[DONE] ham radio lookup complete.`);
+  return lines;
+}
+
+async function fetchDmrLookupLines(moduleId: number, target: string): Promise<string[]> {
+  const callsign = target.trim().toUpperCase();
+  const lines: string[] = [
+    `[MODULE ${moduleId}] DMR LOOKUP — executing on: ${callsign}`,
+    `[QUERY] radioid.net — DMR (Digital Mobile Radio) user database`,
+    `[INFO] looking up digital radio ID and operator info for: ${callsign}`,
+  ];
+  const res = await fetch(`https://radioid.net/api/dmr/user/?callsign=${encodeURIComponent(callsign)}`, {
+    headers: { "User-Agent": "swept-sentinel-osint", "Accept": "application/json" },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`radioid.net responded with ${res.status}`);
+  const data = await res.json() as {
+    count?: number; results?: Array<{
+      id?: number; callsign?: string; fname?: string; name?: string; surname?: string;
+      city?: string; state?: string; country?: string;
+      radio_id?: number; lastheard?: string; lastmaster?: string; lasttg?: string;
+      has_valid_callsign?: string;
+    }>;
+  };
+  if (!data.count || !data.results?.length) {
+    lines.push(`[RESULT] no DMR registration found for callsign: ${callsign}`);
+    lines.push(`[ASSESSMENT] operator has not registered a DMR ID or does not use digital radio`);
+    lines.push(`[DONE] DMR lookup complete.`);
+    return lines;
+  }
+  lines.push(`[RESULT] DMR registrations found: ${data.count}`);
+  for (const r of data.results.slice(0, 3)) {
+    lines.push(`[RECORD]`);
+    lines.push(`  callsign: ${r.callsign ?? callsign}`);
+    lines.push(`  DMR ID (radio_id): ${r.radio_id ?? r.id ?? "unknown"}`);
+    const name = [r.fname, r.name, r.surname].filter(Boolean).join(" ");
+    if (name) lines.push(`  operator: ${name}`);
+    if (r.city || r.state) lines.push(`  location: ${[r.city, r.state, r.country].filter(Boolean).join(", ")}`);
+    if (r.lastheard) lines.push(`  last heard: ${r.lastheard}`);
+    if (r.lasttg) lines.push(`  last talkgroup: ${r.lasttg}`);
+    if (r.lastmaster) lines.push(`  last master server: ${r.lastmaster}`);
+    if (r.has_valid_callsign === "1") lines.push(`  fcc validation: CONFIRMED`);
+  }
+  lines.push(`[DONE] DMR lookup complete.`);
+  return lines;
+}
+
 async function fetchThreatIntelLines(moduleId: number, target: string): Promise<string[]> {
   let ip = target.trim();
   const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(ip);
@@ -3065,6 +3209,12 @@ async function runRealLookup(
       lines = await fetchOtxLines(moduleId, target);
     } else if (moduleId === 183) {
       lines = await fetchOtxLines(moduleId, target);
+    } else if (moduleId === 184) {
+      lines = await fetchFccCallsignLines(moduleId, target);
+    } else if (moduleId === 185) {
+      lines = await fetchHamDbLines(moduleId, target);
+    } else if (moduleId === 186) {
+      lines = await fetchDmrLookupLines(moduleId, target);
     } else if (moduleId === 155) {
       lines = await fetchRipeStatLines(moduleId, target);
     } else if (moduleId === 156) {
