@@ -10,8 +10,8 @@ import { pool } from "@workspace/db";
 const PgSession = connectPgSimple(session);
 
 const sessionSecret = process.env["SESSION_SECRET"];
-if (!sessionSecret && process.env["NODE_ENV"] === "production") {
-  logger.fatal("SESSION_SECRET environment variable is required in production");
+if (!sessionSecret) {
+  logger.fatal("SESSION_SECRET environment variable is required — set it as a Replit secret");
   process.exit(1);
 }
 
@@ -82,7 +82,7 @@ app.use(
     store: new PgSession({
       pool,
     }),
-    secret: sessionSecret ?? "swept-sentinel-dev-secret-change-in-prod",
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
