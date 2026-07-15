@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "gJxBYGPzvQwfdVmYOeDqK"
+uri = "file://.local/outputs/Apex-Sentinel.pptx"
+type = "slides"
+title = "Apex Sentinel.pptx"
