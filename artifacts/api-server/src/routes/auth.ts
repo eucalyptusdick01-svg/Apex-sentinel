@@ -46,11 +46,16 @@ router.post("/auth/register", async (req, res) => {
     return;
   }
 
-  req.session.userId = user.id;
-  req.session.isAdmin = user.isAdmin;
-  req.session.email = user.email;
-
-  res.status(201).json({ id: user.id, email: user.email, isAdmin: user.isAdmin });
+  req.session.regenerate((err) => {
+    if (err) {
+      res.status(500).json({ error: "Failed to establish session" });
+      return;
+    }
+    req.session.userId = user.id;
+    req.session.isAdmin = user.isAdmin;
+    req.session.email = user.email;
+    res.status(201).json({ id: user.id, email: user.email, isAdmin: user.isAdmin });
+  });
 });
 
 router.post("/auth/login", async (req, res) => {
@@ -74,11 +79,16 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
-  req.session.userId = user.id;
-  req.session.isAdmin = user.isAdmin;
-  req.session.email = user.email;
-
-  res.json({ id: user.id, email: user.email, isAdmin: user.isAdmin });
+  req.session.regenerate((err) => {
+    if (err) {
+      res.status(500).json({ error: "Failed to establish session" });
+      return;
+    }
+    req.session.userId = user.id;
+    req.session.isAdmin = user.isAdmin;
+    req.session.email = user.email;
+    res.json({ id: user.id, email: user.email, isAdmin: user.isAdmin });
+  });
 });
 
 router.post("/auth/logout", (req, res) => {
