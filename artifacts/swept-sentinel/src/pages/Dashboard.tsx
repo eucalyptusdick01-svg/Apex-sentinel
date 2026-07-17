@@ -86,6 +86,12 @@ export default function Dashboard() {
                 >
                   [SUGGEST]
                 </button>
+                  <button
+                  onClick={() => navigate("/pricing")}
+                  className="text-primary/60 hover:text-primary tracking-widest border border-primary/20 px-2 py-1 hover:border-primary/50 transition-colors"
+                >
+                  [UPGRADE]
+                </button>
                 <span className="text-muted-foreground tracking-wider hidden sm:inline">
                   {user.email}
                 </span>
@@ -104,7 +110,7 @@ export default function Dashboard() {
           {" · "}
           <span className="text-primary">{modules?.length ?? 0}</span> MODULES LOADED
           {" · "}
-          <span className="text-muted-foreground">128 REAL · 102 SIMULATED</span>
+          <span className="text-muted-foreground">173 REAL · 57 SIMULATED</span>
         </div>
       </header>
 
