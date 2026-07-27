@@ -1,6 +1,11 @@
 import Stripe from 'stripe';
 
 async function getStripeCredentials(): Promise<{ secretKey: string }> {
+  // Use STRIPE_SECRET_KEY env var if set (takes priority over connector)
+  if (process.env.STRIPE_SECRET_KEY) {
+    return { secretKey: process.env.STRIPE_SECRET_KEY };
+  }
+
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY
     ? "repl " + process.env.REPL_IDENTITY
