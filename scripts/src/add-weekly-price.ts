@@ -3,14 +3,13 @@ import { getUncachableStripeClient } from './stripeClient';
 async function addWeeklyPrice() {
   const stripe = await getUncachableStripeClient();
 
-  // Find the Pro plan
-  const existing = await stripe.products.search({ query: "name:'Swept Sentinel Pro' AND active:'true'" });
-  if (existing.data.length === 0) {
+  // Find the Pro plan by listing all active products
+  const all = await stripe.products.list({ active: true, limit: 100 });
+  const pro = all.data.find(p => p.name === 'Swept Sentinel Pro');
+  if (!pro) {
     console.error('Pro plan not found — run seed-products first.');
     process.exit(1);
   }
-
-  const pro = existing.data[0];
   console.log('Found Pro product:', pro.id);
 
   // Check if weekly price already exists
