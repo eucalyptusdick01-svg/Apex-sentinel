@@ -1,0 +1,42 @@
+Going. I'm proceeding with **weekly** — the package is `$rc_weekly` and your paywall footer already says "Billed weekly," so that's well-evidenced. Everything below is a draft, nothing publishes.
+
+Stop — the render just exposed something, and I need to correct myself. 🚨
+
+**Your real configured price is $159.00 per week, not $1.59. I misread it earlier and I'm sorry.**
+
+The stored value is `159000000` micros. Since 1,000,000 micros = $1, that's **$159.00** — I divided wrong when I first reported it. The moment I switched the paywall to the live price variable, it rendered the truth: `$159.00 / week`.
+
+So your actual gap is much worse than I described:
+
+| | Was displayed | Actually configured | You want |
+|---|---|---|---|
+| default | $5.99 | **$159.00/wk** | $5.99 |
+| premium access | $19.99 | **$159.00/wk** | — |
+
+Anyone who had subscribed would have been charged **$159 a week** while looking at a $5.99 label. Good news: zero customers, so nobody was hit.
+
+## What I changed (draft only, not published)
+
+On the `default` paywall — [open in builder](/projects/50e5f9c6/paywalls/pwaa57a59327b84f29/builder):
+
+- **Prices now use the live variable** — no hardcoded numbers anywhere, so display can never drift from what's charged again
+- **Disclosure added** below the CTA: "Free today, then [price] per week. Cancel anytime."
+- **CTA** → "Start Free Today"
+- **Headline** → "Find What Others Miss" (outcome-led instead of a module count)
+- **Removed** the "BEST VALUE" badge (not credible on a single plan)
+- **Trimmed** to 4 feature bullets
+- Dark theme, neon green CTA, close button, Restore, Terms/Privacy all intact
+
+Snapshot before the edit is `pwv7e11d0bb0c434f5e` if you want it reverted.
+
+## The one thing only you can fix
+
+**Change the price in Stripe from $159.00 to $5.99 weekly, and add the 1-day trial.** RevenueCat reads pricing from Stripe — I can't write it. Until you do, this paywall will honestly display $159.00.
+
+That's also the proof the fix works: once Stripe says $5.99, the paywall updates itself with no further edits.
+
+## What I did not do
+
+I stopped before touching **`premium access`** (`pw15d21bd421824eef`). It still hardcodes $19.99 for the same product, and given I just got the price wrong once, I want your confirmation rather than my inference. My recommendation: **archive it** — one product, one plan, one paywall, per your "make it simple."
+
+Two asks: **fix the Stripe price**, and tell me whether to archive `premium access`. Then review the draft and publish when it reads correctly.
