@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "seed-products": "tsx ./src/seed-products.ts",
     "add-weekly-price": "tsx ./src/add-weekly-price.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
