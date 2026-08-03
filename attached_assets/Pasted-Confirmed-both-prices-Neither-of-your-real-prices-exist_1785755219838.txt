@@ -1,0 +1,42 @@
+Confirmed both prices. Neither of your real prices exists as a live Stripe product — and the monthly price doesn't match anything in your account at all.
+
+The full gap
+
+I checked the Test Store monthly product's actual price: it's $0.99, not $19.99. So the $19.99 monthly offering label matches no product anywhere — not Stripe, not Test Store. Your weekly price at least exists correctly on the Test Store side; the monthly one is fiction everywhere.
+
+What each offering would actually charge today, if the SDK were live:
+
+Both point at Swept Sentinel Pro. Same product, same $159.
+
+You need to create two Stripe products
+
+This is the blocking step and it has to happen in your Stripe dashboard — RevenueCat can't author Stripe prices:
+
+  1. $5.99 recurring weekly (+ 1-week trial if you're keeping the trial)
+  2. $19.99 recurring monthly (+ trial to match)
+
+Then import both at Products.
+
+Ping me once they're imported and I'll do the catalog wiring in one pass: attach each to the right package, detach the $159 product from both, and attach the new products to the Pro entitlement.
+
+One decision I need from you
+
+What are Swept Sentinel Pro ($159) and Swept Sentinel Enterprise ($399)? Since neither matches your real pricing, either:
+
+  • They're mistakes → I'll detach them from the Pro entitlement and you can archive them.
+  • They're real annual/enterprise tiers → they stay, and they just don't belong in your weekly/monthly packages.
+
+I can't tell from the data — both return duration: null because nothing's ever been purchased. Not guessing on this one.
+
+Worth reconsidering while you're in there
+
+You have weekly and monthly split across two separate offerings, each with a single package. If you want a paywall showing both options side by side, that's normally one offering with two packages ($rc_weekly + $rc_monthly). The split setup only makes sense if you're deliberately testing weekly-only vs monthly-only against each other. Your two paywalls (weekly, monthly) are each built for one product, so restructuring means paywall edits too — flagging it now rather than after you've fixed the prices.
+
+Where this stands
+
+  1. ⛔ SDK config — still the #1 blocker, nothing works until Purchases.configure() runs with the Stripe app's key
+  2. ⛔ Create 2 Stripe products — you, in Stripe
+  3. ⏳ Catalog wiring — me, once step 2 lands
+  4. ⏳ US trial experiment — only meaningful after 1–3 and some real traffic
+
+I'd do step 1 first even before the pricing work. Fixing prices on an integration that never reports in gets you a correct catalog and still zero revenue
