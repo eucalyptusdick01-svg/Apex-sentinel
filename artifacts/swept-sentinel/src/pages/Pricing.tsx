@@ -15,7 +15,6 @@ interface Plan {
   id: string;
   name: string;
   description: string | null;
-  metadata: Record<string, string> | null;
   prices: Price[];
 }
 
@@ -23,161 +22,27 @@ function formatAmount(cents: number, currency: string) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: currency.toUpperCase(),
-    minimumFractionDigits: 0,
+    minimumFractionDigits: 2,
   }).format(cents / 100);
 }
 
-const PRO_FEATURES = [
+const FEATURES = [
   "All 173 real OSINT modules",
   "Unlimited module runs",
   "VirusTotal, AbuseIPDB & OTX threat intel",
-  "FCC callsign & DMR radio lookup",
+  "Subdomain scan, cert history & Shodan probe",
   "Breach & leak intelligence via AlienVault OTX",
-  "Subdomain scan, cert history, Shodan probe",
+  "FCC callsign & DMR radio lookup",
+  "SSL/TLS cert analysis",
+  "Web scraper & fingerprinting",
+  "Cryptographic tools suite",
 ];
-
-const ENTERPRISE_EXTRAS = [
-  "REST API access",
-  "Team accounts",
-  "Priority support",
-  "SLA guarantee",
-];
-
-function PlanCard({
-  plan,
-  onCheckout,
-  loading,
-}: {
-  plan: Plan;
-  onCheckout: (priceId: string) => void;
-  loading: string | null;
-}) {
-  const [interval, setInterval] = useState<"month" | "year">("month");
-  const monthly = plan.prices.find((p) => p.recurring?.interval === "month");
-  const yearly = plan.prices.find((p) => p.recurring?.interval === "year");
-  const price = interval === "month" ? monthly : (yearly ?? monthly);
-  const isEnterprise = plan.name.toLowerCase().includes("enterprise");
-  const tierLabel = isEnterprise ? "ENTERPRISE" : "PRO";
-  const features = isEnterprise
-    ? [...PRO_FEATURES, ...ENTERPRISE_EXTRAS]
-    : PRO_FEATURES;
-
-  const yearlySavings =
-    monthly && yearly
-      ? Math.round(
-          (1 - yearly.unit_amount / 12 / monthly.unit_amount) * 100,
-        )
-      : null;
-
-  return (
-    <div
-      className={`border font-mono flex flex-col p-6 gap-5 relative ${
-        isEnterprise
-          ? "border-primary bg-primary/5 shadow-[0_0_30px_rgba(0,204,255,0.07)]"
-          : "border-primary/30 bg-card"
-      }`}
-    >
-      {isEnterprise && (
-        <div className="absolute -top-px left-6 right-6 h-px bg-primary/60" />
-      )}
-
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="text-[10px] text-primary/40 tracking-[0.25em] mb-1">
-            [{tierLabel}]
-          </div>
-          <div className="text-primary font-bold text-xl tracking-wide">
-            {plan.name.replace("Swept Sentinel ", "")}
-          </div>
-        </div>
-        {isEnterprise && (
-          <span className="text-[10px] border border-primary text-primary px-2 py-0.5 tracking-widest shrink-0">
-            RECOMMENDED
-          </span>
-        )}
-      </div>
-
-      <p className="text-xs text-primary/60 leading-relaxed">
-        {plan.description}
-      </p>
-
-      {monthly && yearly && (
-        <div className="flex gap-2 text-[11px]">
-          <button
-            onClick={() => setInterval("month")}
-            className={`px-3 py-1 border tracking-widest transition-colors ${
-              interval === "month"
-                ? "border-primary bg-primary text-background"
-                : "border-primary/30 text-primary/50 hover:border-primary/60"
-            }`}
-          >
-            MONTHLY
-          </button>
-          <button
-            onClick={() => setInterval("year")}
-            className={`px-3 py-1 border tracking-widest transition-colors flex items-center gap-2 ${
-              interval === "year"
-                ? "border-primary bg-primary text-background"
-                : "border-primary/30 text-primary/50 hover:border-primary/60"
-            }`}
-          >
-            YEARLY
-            {yearlySavings && (
-              <span
-                className={
-                  interval === "year" ? "opacity-70" : "text-primary/40"
-                }
-              >
-                SAVE {yearlySavings}%
-              </span>
-            )}
-          </button>
-        </div>
-      )}
-
-      {price ? (
-        <div className="text-primary">
-          <span className="text-4xl font-bold">
-            {formatAmount(price.unit_amount, price.currency)}
-          </span>
-          <span className="text-primary/50 text-xs ml-1.5">
-            /{price.recurring?.interval ?? "one-time"}
-          </span>
-          {interval === "year" && monthly && yearly && (
-            <div className="text-[11px] text-primary/40 mt-1 tracking-wide">
-              {formatAmount(yearly.unit_amount / 12, yearly.currency)}/mo billed
-              annually
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      <ul className="text-xs text-primary/70 space-y-2">
-        {features.map((f) => (
-          <li key={f} className="flex gap-2 items-start">
-            <span className="text-primary mt-px shrink-0">▸</span>
-            <span>{f}</span>
-          </li>
-        ))}
-      </ul>
-
-      <button
-        disabled={!price || loading === price.id}
-        onClick={() => price && onCheckout(price.id)}
-        className="mt-auto w-full py-3 text-xs tracking-widest font-bold border border-primary bg-primary text-background hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        {loading === price?.id
-          ? "[REDIRECTING TO STRIPE...]"
-          : `[SUBSCRIBE — ${interval === "year" ? "YEARLY" : "MONTHLY"}]`}
-      </button>
-    </div>
-  );
-}
 
 export default function Pricing() {
   const [, navigate] = useLocation();
   const { data: user } = useAuthMe();
-  const [plans, setPlans] = useState<Plan[] | null>(null);
+  const [weeklyPrice, setWeeklyPrice] = useState<Price | null>(null);
+  const [monthlyPrice, setMonthlyPrice] = useState<Price | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -185,41 +50,49 @@ export default function Pricing() {
     fetch(`${BASE}/api/stripe/plans`)
       .then((r) => r.json())
       .then((d: { plans?: Plan[]; error?: string }) => {
-        if (d.error) setError(d.error);
-        else setPlans(d.plans ?? []);
+        if (d.error) { setError(d.error); return; }
+        const proPlan = (d.plans ?? []).find(
+          (p) => !p.name.toLowerCase().includes("enterprise"),
+        );
+        if (!proPlan) { setError("No plans found."); return; }
+        setWeeklyPrice(proPlan.prices.find((p) => p.recurring?.interval === "week") ?? null);
+        setMonthlyPrice(proPlan.prices.find((p) => p.recurring?.interval === "month") ?? null);
       })
       .catch(() => setError("Failed to load plans. Please try again."));
   }, []);
 
-  async function handleCheckout(priceId: string) {
+  async function handleCheckout(price: Price) {
     if (!user) {
-      navigate("/login");
+      const interval = price.recurring?.interval === "week" ? "weekly" : "monthly";
+      navigate(`/register?plan=${interval}`);
       return;
     }
-    setLoading(priceId);
+    setLoading(price.id);
     try {
       const res = await fetch(`${BASE}/api/stripe/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ priceId }),
+        body: JSON.stringify({ priceId: price.id }),
       });
       const data = (await res.json()) as { url?: string; error?: string };
       if (data.url) {
         window.location.href = data.url;
       } else {
         setError(data.error ?? "Checkout failed. Please try again.");
+        setLoading(null);
       }
     } catch {
-      setError("Network error during checkout. Please try again.");
-    } finally {
+      setError("Network error. Please try again.");
       setLoading(null);
     }
   }
 
+  const plansReady = weeklyPrice || monthlyPrice;
+
   return (
     <div className="min-h-screen bg-background text-primary font-mono p-6 md:p-10">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <button
           onClick={() => navigate("/")}
           className="text-xs text-primary/40 hover:text-primary/70 tracking-widest mb-10 block transition-colors"
@@ -228,30 +101,19 @@ export default function Pricing() {
         </button>
 
         {/* Header */}
-        <div className="mb-12 text-center">
+        <div className="mb-10 text-center">
           <div className="text-[10px] text-primary/40 tracking-[0.3em] mb-3">
-            SWEPT SENTINEL // SUBSCRIPTION TIERS
+            SWEPT SENTINEL // OPERATOR LICENSING
           </div>
           <h1 className="text-3xl font-bold tracking-[0.15em] mb-3">
-            OPERATOR LICENSING
+            GO PRO
           </h1>
-          <p className="text-xs text-primary/50 max-w-lg mx-auto leading-relaxed">
-            Select your clearance level. All paid plans unlock{" "}
+          <p className="text-xs text-primary/50 max-w-md mx-auto leading-relaxed">
+            Unlock all{" "}
             <span className="text-primary font-bold">173 real-data modules</span>{" "}
             with live threat intelligence, full recon suite, and cryptographic tools.
+            Cancel anytime.
           </p>
-        </div>
-
-        {/* Free tier callout */}
-        <div className="mb-8 border border-primary/20 p-4 text-xs text-primary/50 tracking-wide flex flex-col sm:flex-row sm:items-center gap-2">
-          <div>
-            <span className="text-primary font-bold">FREE TIER: </span>
-            Basic access — limited module runs per day, core network and recon
-            modules only.
-          </div>
-          <div className="sm:ml-auto text-primary/30 shrink-0">
-            Upgrade to unlock the full 173-module intelligence suite.
-          </div>
         </div>
 
         {error && (
@@ -260,58 +122,134 @@ export default function Pricing() {
           </div>
         )}
 
-        {plans === null && !error && (
+        {!plansReady && !error && (
           <div className="text-center text-primary/40 text-xs tracking-widest animate-pulse py-16">
             [LOADING PLANS...]
           </div>
         )}
 
-        {plans && plans.length === 0 && (
-          <div className="text-center text-primary/40 text-xs tracking-widest py-16 border border-primary/10">
-            [NO PLANS CONFIGURED]
-          </div>
-        )}
-
-        {plans && plans.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {plans.map((plan) => (
-              <PlanCard
-                key={plan.id}
-                plan={plan}
-                onCheckout={handleCheckout}
-                loading={loading}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Feature comparison strip */}
-        {plans && plans.length > 0 && (
-          <div className="mt-10 border border-primary/10 p-6 text-xs text-primary/50 space-y-2">
-            <div className="text-primary/30 tracking-widest mb-4">
-              ALL PLANS INCLUDE
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {[
-                "173 OSINT modules",
-                "Live streaming output",
-                "SSL / TLS cert analysis",
-                "DNS & WHOIS lookup",
-                "Port & vulnerability scanning",
-                "Cryptographic tools suite",
-                "Web scraper & fingerprinting",
-                "Wayback Machine integration",
-                "SerpAPI search modules",
-              ].map((f) => (
-                <div key={f} className="flex gap-2">
-                  <span className="text-primary/40">·</span> {f}
+        {plansReady && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-10">
+            {/* Weekly card */}
+            {weeklyPrice && (
+              <div className="border border-primary/30 bg-card p-6 flex flex-col gap-5">
+                <div>
+                  <div className="text-[10px] text-primary/40 tracking-[0.25em] mb-1">[WEEKLY]</div>
+                  <div className="text-primary font-bold text-2xl tracking-wide">
+                    {formatAmount(weeklyPrice.unit_amount, weeklyPrice.currency)}
+                    <span className="text-primary/40 text-sm font-normal ml-1">/ week</span>
+                  </div>
+                  <p className="text-xs text-primary/50 mt-1">
+                    Lowest commitment — pay as you go.
+                  </p>
                 </div>
-              ))}
-            </div>
+
+                <ul className="text-xs text-primary/70 space-y-1.5 flex-1">
+                  {FEATURES.map((f) => (
+                    <li key={f} className="flex gap-2 items-start">
+                      <span className="text-primary/50 shrink-0 mt-px">▸</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  disabled={loading === weeklyPrice.id}
+                  onClick={() => handleCheckout(weeklyPrice)}
+                  className="w-full py-3 text-xs tracking-widest font-bold border border-primary/50 text-primary hover:bg-primary/10 hover:border-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {loading === weeklyPrice.id
+                    ? "[REDIRECTING TO STRIPE...]"
+                    : "[ GET WEEKLY ACCESS ]"}
+                </button>
+              </div>
+            )}
+
+            {/* Monthly card */}
+            {monthlyPrice && (
+              <div className="border border-primary bg-primary/5 p-6 flex flex-col gap-5 relative shadow-[0_0_30px_rgba(0,204,255,0.07)]">
+                <div className="absolute -top-px left-6 right-6 h-px bg-primary/60" />
+                <div className="absolute top-3 right-4 text-[10px] border border-primary text-primary px-2 py-0.5 tracking-widest">
+                  BEST VALUE
+                </div>
+
+                <div>
+                  <div className="text-[10px] text-primary/40 tracking-[0.25em] mb-1">[MONTHLY]</div>
+                  <div className="text-primary font-bold text-2xl tracking-wide">
+                    {formatAmount(monthlyPrice.unit_amount, monthlyPrice.currency)}
+                    <span className="text-primary/40 text-sm font-normal ml-1">/ month</span>
+                  </div>
+                  <p className="text-xs text-primary/50 mt-1">
+                    Save ~23% vs weekly — billed once a month.
+                  </p>
+                </div>
+
+                <ul className="text-xs text-primary/70 space-y-1.5 flex-1">
+                  {FEATURES.map((f) => (
+                    <li key={f} className="flex gap-2 items-start">
+                      <span className="text-primary shrink-0 mt-px">▸</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  disabled={loading === monthlyPrice.id}
+                  onClick={() => handleCheckout(monthlyPrice)}
+                  className="w-full py-3 text-xs tracking-widest font-bold border border-primary bg-primary text-background hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {loading === monthlyPrice.id
+                    ? "[REDIRECTING TO STRIPE...]"
+                    : "[ GET MONTHLY ACCESS ]"}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="mt-8 text-center text-xs text-primary/30 tracking-wide">
+        {/* Direct links callout */}
+        {plansReady && (
+          <div className="border border-primary/10 p-5 text-xs text-primary/40 tracking-wide space-y-2 mb-8">
+            <div className="text-primary/30 tracking-widest mb-3">DIRECT PURCHASE LINKS</div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              {weeklyPrice && (
+                <button
+                  onClick={() => navigate("/buy/weekly")}
+                  className="flex-1 border border-primary/20 text-primary/50 hover:border-primary/50 hover:text-primary/80 py-2 px-3 tracking-widest transition-colors text-[11px]"
+                >
+                  /buy/weekly → $5.99/wk
+                </button>
+              )}
+              {monthlyPrice && (
+                <button
+                  onClick={() => navigate("/buy/monthly")}
+                  className="flex-1 border border-primary/20 text-primary/50 hover:border-primary/50 hover:text-primary/80 py-2 px-3 tracking-widest transition-colors text-[11px]"
+                >
+                  /buy/monthly → $19.99/mo
+                </button>
+              )}
+            </div>
+            <p className="text-primary/25 text-[10px] mt-2">
+              Share these links anywhere — they skip straight to checkout.
+            </p>
+          </div>
+        )}
+
+        {/* Free tier note */}
+        <div className="mb-8 border border-primary/10 p-4 text-xs text-primary/40 tracking-wide">
+          <span className="text-primary/60 font-bold">FREE TIER: </span>
+          Basic access — limited module runs per day, core network and recon modules only.
+          {!user && (
+            <button
+              onClick={() => navigate("/register")}
+              className="ml-2 text-primary/50 hover:text-primary underline transition-colors"
+            >
+              Register free →
+            </button>
+          )}
+        </div>
+
+        <div className="text-center text-xs text-primary/25 tracking-wide">
           Secured by Stripe · Cancel anytime · No hidden fees
         </div>
       </div>

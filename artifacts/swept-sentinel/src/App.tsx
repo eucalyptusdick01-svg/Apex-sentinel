@@ -9,6 +9,7 @@ import Register from "@/pages/Register";
 import Admin from "@/pages/Admin";
 import Pricing from "@/pages/Pricing";
 import CheckoutSuccess from "@/pages/CheckoutSuccess";
+import DirectBuy from "@/pages/DirectBuy";
 import { useEffect } from "react";
 import { ProtectedRoute, ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 
@@ -30,6 +31,7 @@ function Router() {
         <ProtectedAdminRoute component={Admin} />
       </Route>
       <Route path="/pricing" component={Pricing} />
+      <Route path="/buy/:interval" component={DirectBuy} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/">
         <ProtectedRoute component={Dashboard} />

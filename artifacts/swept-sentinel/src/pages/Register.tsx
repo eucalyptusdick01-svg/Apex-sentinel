@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthRegister, getAuthMeQueryKey } from "@workspace/api-client-react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 
@@ -49,6 +49,7 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [, navigate] = useLocation();
+  const search = useSearch();
   const queryClient = useQueryClient();
   const register = useAuthRegister();
 
@@ -98,20 +99,39 @@ export default function Register() {
 
   const mismatch = confirm.length > 0 && password !== confirm;
 
-  // Flatten all prices across plans, sorted by interval order
+  // Flatten prices — Pro only, week + month only, sorted by interval order
   const allPrices: Array<{ price: Price; plan: Plan }> = [];
   if (plans) {
     for (const plan of plans) {
-      const sorted = [...plan.prices].sort(
-        (a, b) =>
-          INTERVAL_ORDER.indexOf(a.recurring?.interval ?? "") -
-          INTERVAL_ORDER.indexOf(b.recurring?.interval ?? ""),
-      );
+      if (plan.name.toLowerCase().includes("enterprise")) continue;
+      const sorted = [...plan.prices]
+        .filter((p) => p.recurring?.interval === "week" || p.recurring?.interval === "month")
+        .sort(
+          (a, b) =>
+            INTERVAL_ORDER.indexOf(a.recurring?.interval ?? "") -
+            INTERVAL_ORDER.indexOf(b.recurring?.interval ?? ""),
+        );
       for (const price of sorted) {
         allPrices.push({ price, plan });
       }
     }
   }
+
+  // Pre-select based on ?plan=weekly or ?plan=monthly query param
+  useEffect(() => {
+    if (!plans || allPrices.length === 0) return;
+    const params = new URLSearchParams(search);
+    const planParam = params.get("plan");
+    if (!planParam) return;
+    const targetInterval = planParam === "weekly" ? "week" : planParam === "monthly" ? "month" : null;
+    if (!targetInterval) return;
+    const match = allPrices.find(({ price }) => price.recurring?.interval === targetInterval);
+    if (match) {
+      setSelectedPriceId(match.price.id);
+      setStep("credentials");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plans]);
 
   if (step === "plan") {
     return (
