@@ -86,11 +86,11 @@ export default function Register() {
               .then((r) => r.json())
               .then((data: { url?: string }) => {
                 if (data.url) window.location.href = data.url;
-                else navigate("/");
+                else navigate("/dashboard");
               })
-              .catch(() => navigate("/"));
+              .catch(() => navigate("/dashboard"));
           } else {
-            navigate("/");
+            navigate("/dashboard");
           }
         },
       },

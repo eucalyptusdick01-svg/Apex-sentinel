@@ -94,7 +94,7 @@ export default function Pricing() {
     <div className="min-h-screen bg-background text-primary font-mono p-6 md:p-10">
       <div className="max-w-3xl mx-auto">
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/dashboard")}
           className="text-xs text-primary/40 hover:text-primary/70 tracking-widest mb-10 block transition-colors"
         >
           ← BACK TO DASHBOARD

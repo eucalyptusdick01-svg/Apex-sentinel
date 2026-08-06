@@ -18,7 +18,7 @@ export default function Login() {
       {
         onSuccess: (user) => {
           queryClient.setQueryData(getAuthMeQueryKey(), user);
-          navigate("/");
+          navigate("/dashboard");
         },
       },
     );

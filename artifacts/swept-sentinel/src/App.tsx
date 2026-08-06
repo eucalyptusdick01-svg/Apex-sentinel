@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
@@ -33,9 +34,10 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/buy/:interval" component={DirectBuy} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
-      <Route path="/">
+      <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} />
       </Route>
+      <Route path="/" component={Landing} />
       <Route component={NotFound} />
     </Switch>
   );

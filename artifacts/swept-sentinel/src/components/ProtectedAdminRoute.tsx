@@ -31,7 +31,7 @@ export function ProtectedAdminRoute({ component: Component }: { component: React
     return <Redirect to="/login" />;
   }
   if (!user.isAdmin) {
-    return <Redirect to="/" />;
+    return <Redirect to="/dashboard" />;
   }
   return <Component />;
 }

@@ -243,7 +243,7 @@ export default function Admin() {
         </h1>
         <div className="flex-1" />
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/dashboard")}
           className="text-xs text-primary/70 hover:text-primary tracking-widest border border-primary/20 px-3 py-1"
         >
           ← DASHBOARD

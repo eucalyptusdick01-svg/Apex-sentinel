@@ -13,7 +13,7 @@ export default function CheckoutSuccess() {
           Your subscription is now active. All modules unlocked. Welcome to the full intelligence suite, operator.
         </p>
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/dashboard")}
           className="text-xs border border-primary px-6 py-2.5 tracking-widest hover:bg-primary hover:text-background transition-colors"
         >
           [RETURN TO DASHBOARD]
