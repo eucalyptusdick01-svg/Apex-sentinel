@@ -171,9 +171,54 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* About */}
+      <section className="max-w-3xl mx-auto px-6 pb-16">
+        <div className="text-[10px] text-primary/30 tracking-[0.3em] text-center mb-6">
+          ABOUT
+        </div>
+        <div className="border border-primary/10 p-6 text-xs text-primary/50 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-6">
+            <div className="flex-1 space-y-1">
+              <div className="text-primary font-bold tracking-widest text-sm">ERIC MONROY JR</div>
+              <div className="text-primary/40 tracking-wide">Application Developer · Graphic Design Artist</div>
+              <p className="text-primary/40 leading-relaxed mt-3">
+                Swept Sentinel is an independent OSINT intelligence platform built for
+                investigators, researchers, and security professionals who need real data fast.
+                Every module runs against live APIs — no simulated results, no guesswork.
+              </p>
+            </div>
+            <div className="shrink-0 space-y-1 text-primary/40 text-[11px] tracking-wide border-t border-primary/10 pt-4 sm:border-t-0 sm:pt-0 sm:border-l sm:border-primary/10 sm:pl-6">
+              <div className="text-primary/30 tracking-widest text-[10px] mb-2">CONTACT</div>
+              <div>803 W Poplar St</div>
+              <div>Stockton, CA 95202</div>
+              <div className="mt-2">
+                <a href="tel:+12093738518" className="hover:text-primary transition-colors">(209) 373-8518</a>
+              </div>
+              <div>
+                <a href="https://sweptsentinel.com" className="hover:text-primary transition-colors">sweptsentinel.com</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="border-t border-primary/10 px-6 py-6 text-center text-[10px] text-primary/20 tracking-widest">
-        © 2026 SWEPT SENTINEL · ALL RIGHTS RESERVED
+      <footer className="border-t border-primary/10 px-6 py-8 text-center space-y-2">
+        <div className="text-[10px] text-primary/20 tracking-widest">
+          © 2026 SWEPT SENTINEL · ERIC MONROY JR · ALL RIGHTS RESERVED
+        </div>
+        <div className="text-[10px] text-primary/20 tracking-wide space-x-3">
+          <span>Payments secured by Stripe</span>
+          <span>·</span>
+          <a href="/privacy" className="hover:text-primary/40 transition-colors underline">Privacy Policy</a>
+          <span>·</span>
+          <a href="/terms" className="hover:text-primary/40 transition-colors underline">Terms of Service</a>
+          <span>·</span>
+          <a href="mailto:support@sweptsentinel.com" className="hover:text-primary/40 transition-colors underline">Contact</a>
+        </div>
+        <div className="text-[9px] text-primary/15 tracking-wide">
+          Eric Monroy Jr · 803 W Poplar St, Stockton CA 95202 · (209) 373-8518
+        </div>
       </footer>
     </div>
   );
