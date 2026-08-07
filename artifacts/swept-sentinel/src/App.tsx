@@ -11,6 +11,8 @@ import Admin from "@/pages/Admin";
 import Pricing from "@/pages/Pricing";
 import CheckoutSuccess from "@/pages/CheckoutSuccess";
 import DirectBuy from "@/pages/DirectBuy";
+import Privacy from "@/pages/Privacy";
+import Terms from "@/pages/Terms";
 import { useEffect } from "react";
 import { ProtectedRoute, ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 
@@ -37,6 +39,8 @@ function Router() {
       <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} />
       </Route>
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/terms" component={Terms} />
       <Route path="/" component={Landing} />
       <Route component={NotFound} />
     </Switch>
