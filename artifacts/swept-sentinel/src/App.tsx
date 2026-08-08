@@ -13,6 +13,7 @@ import CheckoutSuccess from "@/pages/CheckoutSuccess";
 import DirectBuy from "@/pages/DirectBuy";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
+import Modules from "@/pages/Modules";
 import { useEffect } from "react";
 import { ProtectedRoute, ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 
@@ -39,6 +40,7 @@ function Router() {
       <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} />
       </Route>
+      <Route path="/modules" component={Modules} />
       <Route path="/privacy" component={Privacy} />
       <Route path="/terms" component={Terms} />
       <Route path="/" component={Landing} />

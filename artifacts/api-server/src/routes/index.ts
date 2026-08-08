@@ -13,9 +13,7 @@ router.use(healthRouter);
 router.use(authRouter);
 router.use(adminRouter);
 router.use(stripeRouter);
-router.use("/sentinel/modules", requireAuth);
-router.use("/sentinel/execute", requireAuth);
-router.use("/sentinel/stream", requireAuth);
+// execute and stream are open to guests — 4-run limit enforced inside sentinel.ts
 router.use(sentinelRouter);
 router.use(suggestionsRouter);
 

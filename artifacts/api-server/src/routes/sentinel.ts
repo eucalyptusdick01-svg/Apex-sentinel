@@ -3428,6 +3428,11 @@ async function runRealLookup(
   }
 }
 
+// Guest run tracking — IP-based, 4 runs per 24 h, in-memory
+const guestRunTracker = new Map<string, { count: number; resetAt: number }>();
+const GUEST_RUN_LIMIT = 4;
+const GUEST_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 router.post("/sentinel/execute", (req, res) => {
   const parsed = ExecuteModuleBody.safeParse(req.body);
   if (!parsed.success) {
@@ -3438,6 +3443,22 @@ router.post("/sentinel/execute", (req, res) => {
   const { moduleId, target } = parsed.data;
   const runId = randomUUID();
   const userId = req.session.userId;
+
+  // Enforce guest run limit
+  if (!userId) {
+    const ip = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim() ?? req.socket.remoteAddress ?? "unknown";
+    const now = Date.now();
+    const entry = guestRunTracker.get(ip);
+    if (entry && now < entry.resetAt) {
+      if (entry.count >= GUEST_RUN_LIMIT) {
+        res.status(429).json({ error: "guest_limit_reached", runsUsed: entry.count });
+        return;
+      }
+      entry.count++;
+    } else {
+      guestRunTracker.set(ip, { count: 1, resetAt: now + GUEST_WINDOW_MS });
+    }
+  }
   const moduleName = getModuleName(moduleId);
   const startedAt = new Date();
 

@@ -45,6 +45,12 @@ export default function Landing() {
         </span>
         <div className="flex gap-4 text-xs tracking-widest">
           <button
+            onClick={() => navigate("/modules")}
+            className="text-primary/50 hover:text-primary transition-colors"
+          >
+            MODULES
+          </button>
+          <button
             onClick={() => navigate("/pricing")}
             className="text-primary/50 hover:text-primary transition-colors"
           >
@@ -79,20 +85,20 @@ export default function Landing() {
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
-            onClick={() => navigate("/buy/weekly")}
+            onClick={() => navigate("/modules")}
             className="px-8 py-3 bg-primary text-background text-sm font-bold tracking-widest hover:bg-primary/90 transition-colors"
           >
-            START FOR $5.99 / WEEK
+            BROWSE 230 MODULES →
           </button>
           <button
             onClick={() => navigate("/register")}
             className="px-8 py-3 border border-primary/40 text-primary/70 text-sm tracking-widest hover:border-primary hover:text-primary transition-colors"
           >
-            TRY FREE
+            REGISTER FREE
           </button>
         </div>
         <p className="text-[11px] text-primary/30 mt-4 tracking-wide">
-          No contract · Cancel anytime · Full access from day one
+          Browse freely · Register to run · $5.99/week for full access
         </p>
       </section>
 
