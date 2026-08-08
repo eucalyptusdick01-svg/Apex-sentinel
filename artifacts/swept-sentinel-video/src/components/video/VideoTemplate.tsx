@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 import { Scene1 } from './video_scenes/Scene1';
 import { Scene2 } from './video_scenes/Scene2';
+import { SceneHowTo } from './video_scenes/SceneHowTo';
 import { Scene3 } from './video_scenes/Scene3';
 import { Scene4 } from './video_scenes/Scene4';
 import { Scene5 } from './video_scenes/Scene5';
@@ -11,6 +12,7 @@ import { Scene5 } from './video_scenes/Scene5';
 export const SCENE_DURATIONS: Record<string, number> = {
   scene1: 7500,
   scene2: 7000,
+  sceneHowTo: 9000,
   scene3: 9000,
   scene4: 7000,
   scene5: 7500,
@@ -19,6 +21,7 @@ export const SCENE_DURATIONS: Record<string, number> = {
 const SCENE_COMPONENTS: Record<string, React.ComponentType> = {
   scene1: Scene1,
   scene2: Scene2,
+  sceneHowTo: SceneHowTo,
   scene3: Scene3,
   scene4: Scene4,
   scene5: Scene5,
