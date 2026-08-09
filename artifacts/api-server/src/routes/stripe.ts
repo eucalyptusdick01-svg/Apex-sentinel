@@ -7,32 +7,35 @@ const router: IRouter = Router();
 
 router.get('/stripe/plans', async (_req, res) => {
   try {
-    const rows = await stripeStorage.listProductsWithPrices();
+    const stripe = await getUncachableStripeClient();
+    const [productsRes, pricesRes] = await Promise.all([
+      stripe.products.list({ active: true, limit: 100 }),
+      stripe.prices.list({ active: true, limit: 100 }),
+    ]);
     const productsMap = new Map<string, {
       id: string; name: string; description: string | null;
-      metadata: Record<string, string> | null; prices: Array<{
+      metadata: Record<string, string>; prices: Array<{
         id: string; unit_amount: number; currency: string;
         recurring: { interval: string } | null;
       }>;
     }>();
-    for (const row of rows) {
-      if (!productsMap.has(row.product_id as string)) {
-        productsMap.set(row.product_id as string, {
-          id: row.product_id as string,
-          name: row.product_name as string,
-          description: row.product_description as string | null,
-          metadata: row.product_metadata as Record<string, string> | null,
-          prices: [],
-        });
-      }
-      if (row.price_id) {
-        productsMap.get(row.product_id as string)!.prices.push({
-          id: row.price_id as string,
-          unit_amount: row.unit_amount as number,
-          currency: row.currency as string,
-          recurring: row.recurring as { interval: string } | null,
-        });
-      }
+    for (const product of productsRes.data) {
+      productsMap.set(product.id, {
+        id: product.id,
+        name: product.name,
+        description: product.description ?? null,
+        metadata: product.metadata as Record<string, string>,
+        prices: [],
+      });
+    }
+    for (const price of pricesRes.data) {
+      const productId = typeof price.product === 'string' ? price.product : price.product.id;
+      productsMap.get(productId)?.prices.push({
+        id: price.id,
+        unit_amount: price.unit_amount ?? 0,
+        currency: price.currency,
+        recurring: price.recurring ? { interval: price.recurring.interval } : null,
+      });
     }
     res.json({ plans: Array.from(productsMap.values()) });
   } catch (err: any) {
@@ -104,7 +107,8 @@ router.get('/stripe/subscription', requireAuth, async (req: any, res) => {
       res.json({ subscription: null, plan: 'free' }); return;
     }
 
-    const sub = await stripeStorage.getSubscription(userInfo.stripe_subscription_id as string);
+    const stripe = await getUncachableStripeClient();
+    const sub = await stripe.subscriptions.retrieve(userInfo.stripe_subscription_id as string);
     res.json({ subscription: sub, plan: sub?.status === 'active' ? 'pro' : 'free' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
