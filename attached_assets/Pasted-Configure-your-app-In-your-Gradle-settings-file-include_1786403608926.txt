@@ -1,0 +1,123 @@
+Configure your app
+In your Gradle settings file, include the Google's Maven repository and Maven central repository:
+
+Kotlin
+Groovy
+
+pluginManagement {
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+}
+
+dependencyResolutionManagement {
+  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+  repositories {
+    google()
+    mavenCentral()
+  }
+}
+
+rootProject.name = "My Application"
+include(":app")
+Add the dependencies for Google Mobile Ads SDK (Legacy) to your app-level build file:
+
+Kotlin
+Groovy
+
+dependencies {
+  implementation("com.google.android.gms:play-services-ads:25.4.0")
+}
+Click Sync Now. For details on syncing, see Sync projects with Gradle files.
+
+Add your AdMob app ID, as identified in the AdMob web interface, to your app's AndroidManifest.xml file. To do so, add a <meta-data> tag with android:name="com.google.android.gms.ads.APPLICATION_ID". You can find your app ID in the AdMob web interface. For android:value, insert your own AdMob app ID, surrounded by quotation marks.
+
+
+<manifest>
+  <application>
+    <!-- Sample AdMob app ID: ca-app-pub-3940256099942544~3347511713 -->
+    <meta-data
+        android:name="com.google.android.gms.ads.APPLICATION_ID"
+        android:value="SAMPLE_APP_ID"/>
+  </application>
+</manifest>
+Replace SAMPLE_APP_ID with your AdMob app ID. While testing, use the sample app ID shown in the previous example.
+
+Also, note that failure to add the <meta-data> tag exactly as shown results in a crash with the message:
+
+
+Missing application ID.
+(Optional) Declare AD_ID permission for previous versions to work with Android 13.
+Initialize the Google Mobile Ads SDK (Legacy)
+Before loading ads, initialize Google Mobile Ads SDK (Legacy) by calling MobileAds.initialize().
+This method initializes the SDK and calls a completion listener once both Google Mobile Ads SDK (Legacy) and adapter initializations have completed, or after a 30-second timeout. This needs to be done only once, ideally at app launch.
+
+If you're using AdMob Mediation, wait until the completion handler is called before loading ads. This ensures that all mediation adapters are initialized.
+
+Ads may be preloaded by Google Mobile Ads SDK (Legacy) or mediation partner SDKs upon initialization. If you need to obtain consent from users in the European Economic Area (EEA), the United Kingdom (UK), or Switzerland, set any request-specific flags, such as setTagForChildDirectedTreatment() or setTagForUnderAgeOfConsent(), or otherwise take action before loading ads, ensure you do so before initializing Google Mobile Ads SDK (Legacy).
+
+Here's an example of how to call the initialize() method on a background thread within an Activity:
+
+Java
+Kotlin
+
+new Thread(
+        () -> {
+          // Initialize the Google Mobile Ads SDK on a background thread.
+          MobileAds.initialize(this, initializationStatus -> {});
+        })
+    .start();
+
+
+Select an ad format
+Google Mobile Ads SDK (Legacy) is now imported and you're ready to implement an ad. AdMob offers a number of different ad formats, so you can choose the one that best fits your app's user experience.
+
+Banner
+
+
+Banner ad units display rectangular ads that occupy a portion of an app's layout. They can refresh automatically after a set period of time. This means users view a new ad at regular intervals, even if they stay on the same screen in your app. They're also the simplest ad format to implement.
+
+Implement banner ads
+
+Interstitial
+
+
+Interstitial ad units show full-page ads in your app. Place them at natural breaks and transitions in your app's interface, such as after level completion in a gaming app.
+
+Implement interstitial ads
+
+Native
+
+
+Native ads are ads where you can customize the way assets such as headlines and calls to action are presented in your apps. By styling the ad yourself, you can create a natural, unobtrusive ad presentations that can add to a rich user experience.
+
+Implement native ads
+
+Rewarded
+
+
+Rewarded ad units enable users to play games, take surveys, or watch videos to earn in-app rewards, such as coins, extra lives, or points. You can set different rewards for different ad units, and specify the reward values and items the user received.
+
+Implement rewarded ads
+
+Rewarded interstitial
+
+
+Rewarded interstitial is a new type of incentivized ad format that lets you offer rewards, such as coins or extra lives, for ads that appear automatically during natural app transitions.
+
+Unlike rewarded ads, users aren't required to opt in to view a rewarded interstitial.
+
+Instead of the opt-in prompt in rewarded ads, rewarded interstitials require an intro screen that announces the reward and gives users a chance to opt out if they want to do so.
+
+Implement rewarded interstitial ads
+
+App open
+
+
+App open is an ad format that appears when users open or switch back to your app. The ad overlays the loading screen.
+
+Implement app open ads
+
+Additional resources
