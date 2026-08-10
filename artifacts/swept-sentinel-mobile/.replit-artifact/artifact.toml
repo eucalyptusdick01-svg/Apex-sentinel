@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/swept-sentinel-mobile/"
+title = "Swept Sentinel Mobile"
+description = "A native mobile companion to Swept Sentinel — lets operators run OSINT intelligence modules on the go. Search and execute any of 230 modules (IP lookup, DNS recon, breach intel, subdomain scan, etc.), stream live results, and manage their subscription. Free-tier users see AdMob ads (banner, interstitial, rewarded); Pro subscribers get an ad-free experience."
+version = "1.0.0"
+id = "artifacts/swept-sentinel-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/swept-sentinel-mobile/" ]
+localPort = 19481
+
+[services.development]
+run = "pnpm --filter @workspace/swept-sentinel-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/swept-sentinel-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/swept-sentinel-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "19481"
+BASE_PATH = "/swept-sentinel-mobile/"
