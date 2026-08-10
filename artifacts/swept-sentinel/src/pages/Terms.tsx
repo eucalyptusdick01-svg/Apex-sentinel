@@ -59,7 +59,7 @@ export default function Terms() {
             <p>You may cancel your subscription at any time with no cancellation fee.</p>
             <ul className="space-y-2 mt-2">
               <li className="flex gap-2"><span className="text-primary/40 shrink-0">▸</span>Cancellation takes effect at the end of your current billing period. You retain full Pro access until then.</li>
-              <li className="flex gap-2"><span className="text-primary/40 shrink-0">▸</span>To cancel, log into your dashboard and use the billing portal, or email us at <strong className="text-primary/90">support@sweptsentinel.com</strong>.</li>
+              <li className="flex gap-2"><span className="text-primary/40 shrink-0">▸</span>To cancel, log into your dashboard and use the billing portal, or email us at <strong className="text-primary/90">support@swept-sentinel.com</strong>.</li>
               <li className="flex gap-2"><span className="text-primary/40 shrink-0">▸</span>After cancellation your account reverts to the free tier automatically. No data is deleted.</li>
               <li className="flex gap-2"><span className="text-primary/40 shrink-0">▸</span>If you cancel within 24 hours of your very first subscription charge and have run fewer than 10 modules, contact us for a courtesy refund consideration.</li>
             </ul>
@@ -76,7 +76,7 @@ export default function Terms() {
               <li className="flex gap-2"><span className="text-primary/40 shrink-0">▸</span>We do not issue refunds for partial billing periods or unused module runs.</li>
               <li className="flex gap-2"><span className="text-primary/40 shrink-0">▸</span>If you initiate a chargeback with your bank before contacting us, we reserve the right to suspend your account pending resolution.</li>
             </ul>
-            <p className="mt-2">To request a refund or dispute a charge, contact us at <strong className="text-primary/90">support@sweptsentinel.com</strong> or (209) 373-8518 with your account email, the charge date, and reason for your request. Nothing in this policy limits your rights under applicable consumer protection law.</p>
+            <p className="mt-2">To request a refund or dispute a charge, contact us at <strong className="text-primary/90">support@swept-sentinel.com</strong> or (209) 373-8518 with your account email, the charge date, and reason for your request. Nothing in this policy limits your rights under applicable consumer protection law.</p>
           </section>
 
           <section>
@@ -141,7 +141,7 @@ export default function Terms() {
               <div className="text-primary/70 font-bold">Eric Monroy Jr — Swept Sentinel</div>
               <div>803 W Poplar St, Stockton CA 95202</div>
               <div>📞 (209) 373-8518</div>
-              <div>✉ support@sweptsentinel.com</div>
+              <div>✉ support@swept-sentinel.com</div>
               <div>🌐 sweptsentinel.com</div>
               <div className="pt-1 text-primary/30">Support hours: Mon–Fri, 9 AM – 6 PM PT · Response within 1 business day</div>
             </div>
