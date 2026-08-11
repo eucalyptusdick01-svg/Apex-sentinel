@@ -198,7 +198,7 @@ export default function Landing() {
               <div>803 W Poplar St</div>
               <div>Stockton, CA 95202</div>
               <div className="mt-2">
-                <a href="tel:+12093738518" className="hover:text-primary transition-colors">(209) 373-8518</a>
+                <a href="tel:+12093778518" className="hover:text-primary transition-colors">(209) 377-8518</a>
               </div>
               <div>
                 <a href="https://sweptsentinel.com" className="hover:text-primary transition-colors">sweptsentinel.com</a>
