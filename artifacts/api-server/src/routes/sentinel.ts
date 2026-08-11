@@ -246,6 +246,14 @@ const SPECIALIZED_MODULES: Record<number, string> = {
   228: "CIPHER REF",
   229: "PORT SCANNER+",
   230: "DMARC ANALYZE",
+  231: "GREYNOISE INTEL",
+  232: "URLSCAN LOOKUP",
+  233: "BGPVIEW ROUTING",
+  234: "HACKERTARGET REVERSE",
+  235: "LEAKIX EXPOSED",
+  236: "SPAMHAUS DNSBL",
+  237: "CMS FINGERPRINT",
+  238: "NIKTO HEADERS",
 };
 
 function getModuleName(id: number): string {
@@ -262,7 +270,7 @@ function getModuleCategory(id: number): string {
 }
 
 router.get("/sentinel/modules", (_req, res) => {
-  const modules = Array.from({ length: 230 }, (_, i) => {
+  const modules = Array.from({ length: 238 }, (_, i) => {
     const id = i + 1;
     return {
       id,
@@ -324,6 +332,8 @@ const REAL_LOOKUP_MODULES = new Set([
   201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215,
   216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, // ALL ADVANCED
   230,
+  // NEW OSINT tools (231-238)
+  231, 232, 233, 234, 235, 236, 237, 238,
 ]);
 
 function sleep(ms: number): Promise<void> {
@@ -3412,6 +3422,22 @@ async function runRealLookup(
       lines = await runPyScript("port_scanner_plus.py", target, [`[MODULE 229] PORT SCANNER+ — enhanced TCP scan with service detection + banner grab`, `[INFO] format: 192.168.1.1  or  host:1-1024  or  host:22,80,443  or  host:top1000`]);
     } else if (moduleId === 230) {
       lines = await fetchDmarcAnalyzeLines(moduleId, target);
+    } else if (moduleId === 231) {
+      lines = await fetchGreyNoiseLines(moduleId, target);
+    } else if (moduleId === 232) {
+      lines = await fetchUrlScanLines(moduleId, target);
+    } else if (moduleId === 233) {
+      lines = await fetchBgpViewLines(moduleId, target);
+    } else if (moduleId === 234) {
+      lines = await fetchHackerTargetReverseLookup(moduleId, target);
+    } else if (moduleId === 235) {
+      lines = await fetchLeakIxLines(moduleId, target);
+    } else if (moduleId === 236) {
+      lines = await fetchSpamhausLines(moduleId, target);
+    } else if (moduleId === 237) {
+      lines = await fetchCmsFingerprint(moduleId, target);
+    } else if (moduleId === 238) {
+      lines = await fetchNiktoHeaders(moduleId, target);
     } else {
       lines = await fetchIpLookupLines(moduleId, target);
     }
@@ -3426,6 +3452,249 @@ async function runRealLookup(
   } finally {
     finishRun(runState, runId);
   }
+}
+
+// ── NEW OSINT MODULES 231-238 ─────────────────────────────────────────────────
+
+async function fetchGreyNoiseLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] GREYNOISE INTEL — internet noise vs targeted attack context`);
+  lines.push(`[TARGET] ${target.trim()}`);
+  try {
+    const res = await fetch(`https://api.greynoise.io/v3/community/${encodeURIComponent(target.trim())}`);
+    if (res.status === 404) {
+      lines.push(`[STATUS] Not in GreyNoise dataset`);
+      lines.push(`[VERDICT] No internet scanning activity on record for this IP`);
+      return lines;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json() as Record<string, unknown>;
+    lines.push(`[IP]             ${d["ip"]}`);
+    lines.push(`[NOISE]          ${d["noise"] ? '⚠  YES — mass internet scanner' : '✓  NO — not a known scanner'}`);
+    lines.push(`[RIOT]           ${d["riot"] ? '✓  YES — common business service (Google/AWS/CDN)' : 'NO'}`);
+    lines.push(`[CLASSIFICATION] ${d["classification"] ?? 'unknown'}`);
+    lines.push(`[NAME]           ${d["name"] ?? 'n/a'}`);
+    lines.push(`[LAST SEEN]      ${d["last_seen"] ?? 'n/a'}`);
+    if (d["link"]) lines.push(`[DETAILS]        ${d["link"]}`);
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  return lines;
+}
+
+async function fetchBgpViewLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] BGPVIEW ROUTING — BGP routing data, ASN details, prefix info`);
+  const t = target.trim();
+  lines.push(`[TARGET] ${t}`);
+  try {
+    const isAsn = /^(AS)?\d+$/i.test(t);
+    const endpoint = isAsn
+      ? `https://api.bgpview.io/asn/${t.replace(/^AS/i, '')}`
+      : `https://api.bgpview.io/ip/${t}`;
+    const res = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json() as Record<string, unknown>;
+    const d = json["data"] as Record<string, unknown>;
+    if (!d) throw new Error('Empty response');
+    if (isAsn) {
+      lines.push(`[ASN]         AS${d["asn"]}`);
+      lines.push(`[NAME]        ${d["name"]}`);
+      lines.push(`[DESCRIPTION] ${(d["description_short"] ?? d["description"]) ?? 'n/a'}`);
+      lines.push(`[COUNTRY]     ${d["country_code"] ?? 'n/a'}`);
+      const rir = d["rir_allocation"] as Record<string, unknown> ?? {};
+      lines.push(`[RIR]         ${rir["rir_name"] ?? 'n/a'}`);
+      lines.push(`[WEBSITE]     ${d["website"] ?? 'n/a'}`);
+    } else {
+      const rir = d["rir_allocation"] as Record<string, unknown> ?? {};
+      const pfxArr = d["prefixes"] as Record<string, unknown>[] ?? [];
+      const pfx = pfxArr[0] as Record<string, unknown> ?? {};
+      const asns = (pfx["asns"] as Record<string, unknown>[] ?? [])[0] as Record<string, unknown> ?? {};
+      lines.push(`[IP]         ${d["ip"]}`);
+      lines.push(`[RIR]        ${rir["rir_name"] ?? 'n/a'}`);
+      lines.push(`[ALLOC DATE] ${rir["date_allocated"] ?? 'n/a'}`);
+      lines.push(`[PREFIX]     ${pfx["prefix"] ?? 'n/a'}`);
+      lines.push(`[ASN]        AS${asns["asn"] ?? 'n/a'}`);
+      lines.push(`[AS NAME]    ${asns["name"] ?? 'n/a'}`);
+      lines.push(`[AS DESC]    ${asns["description"] ?? 'n/a'}`);
+      lines.push(`[COUNTRY]    ${asns["country_code"] ?? 'n/a'}`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  return lines;
+}
+
+async function fetchHackerTargetReverseLookup(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] HACKERTARGET REVERSE — domains sharing this IP (shared hosting discovery)`);
+  lines.push(`[TARGET] ${target.trim()}`);
+  try {
+    const res = await fetch(`https://api.hackertarget.com/reverseiplookup/?q=${encodeURIComponent(target.trim())}`);
+    const text = await res.text();
+    if (text.includes('error') || text.includes('API count')) {
+      lines.push(`[INFO] ${text.trim()}`); return lines;
+    }
+    const hosts = text.trim().split('\n').filter(Boolean);
+    lines.push(`[SHARED HOSTS] ${hosts.length} domain(s) on this IP`);
+    for (const h of hosts.slice(0, 50)) lines.push(`  ▸ ${h}`);
+    if (hosts.length > 50) lines.push(`  ... and ${hosts.length - 50} more`);
+    lines.push(`[INFO] High host count = shared hosting or CDN node`);
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  return lines;
+}
+
+async function fetchLeakIxLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] LEAKIX EXPOSED — exposed services and data leak intelligence`);
+  lines.push(`[TARGET] ${target.trim()}`);
+  try {
+    const res = await fetch(`https://leakix.net/host/${encodeURIComponent(target.trim())}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (res.status === 404) { lines.push(`[STATUS] No exposed services indexed for this host`); return lines; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json() as Record<string, unknown>[];
+    if (!Array.isArray(data) || data.length === 0) { lines.push(`[STATUS] No records found`); return lines; }
+    lines.push(`[RECORDS] ${data.length} exposed service(s) indexed`);
+    for (const svc of data.slice(0, 5)) {
+      const s = svc as Record<string, unknown>;
+      const fp = s["event_finger_print"] as Record<string, unknown> ?? {};
+      lines.push(`─────────────────────────────────────`);
+      lines.push(`[PORT]       ${s["ip"]}:${s["port"]}`);
+      lines.push(`[TRANSPORT]  ${s["transport"] ?? 'n/a'}`);
+      lines.push(`[SERVICE]    ${s["event_source"] ?? 'n/a'}`);
+      lines.push(`[SEVERITY]   ${s["severity"] ?? 'n/a'}`);
+      lines.push(`[TIME]       ${s["time"] ?? 'n/a'}`);
+      if (fp["Header"]) lines.push(`[BANNER]     ${String(fp["Header"]).slice(0, 120)}`);
+    }
+    if (data.length > 5) lines.push(`  ... and ${data.length - 5} more services`);
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  return lines;
+}
+
+async function fetchSpamhausLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] SPAMHAUS DNSBL — DNS blocklist reputation check`);
+  const t = target.trim();
+  lines.push(`[TARGET] ${t}`);
+  try {
+    const { promises: dnsP } = await import('dns');
+    const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(t);
+    const allLists = [
+      { zone: 'zen.spamhaus.org', label: 'ZEN (combined IP blocklist)',   ipOnly: true  },
+      { zone: 'sbl.spamhaus.org', label: 'SBL (spam blocklist)',          ipOnly: true  },
+      { zone: 'xbl.spamhaus.org', label: 'XBL (exploit blocklist)',       ipOnly: true  },
+      { zone: 'pbl.spamhaus.org', label: 'PBL (policy blocklist)',        ipOnly: true  },
+      { zone: 'dbl.spamhaus.org', label: 'DBL (domain blocklist)',        ipOnly: false },
+    ];
+    const lists = allLists.filter(l => isIp ? l.ipOnly : !l.ipOnly);
+    const query = isIp ? t.split('.').reverse().join('.') : t;
+    let anyListed = false;
+    for (const list of lists) {
+      try {
+        const addrs = await dnsP.resolve4(`${query}.${list.zone}`);
+        lines.push(`[⚠ LISTED]  ${list.label}`);
+        lines.push(`            Response: ${addrs.join(', ')}`);
+        anyListed = true;
+      } catch { lines.push(`[✓ CLEAN]   ${list.label}`); }
+    }
+    lines.push(anyListed
+      ? `[VERDICT] LISTED — appears on one or more Spamhaus blocklists`
+      : `[VERDICT] CLEAN — not listed on any checked Spamhaus blocklists`);
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  return lines;
+}
+
+async function fetchCmsFingerprint(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] CMS FINGERPRINT — detect CMS, server, and tech stack from HTTP`);
+  let url = target.trim();
+  if (!url.startsWith('http')) url = `https://${url}`;
+  lines.push(`[URL] ${url}`);
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SentinelBot/1.0)' },
+      redirect: 'follow',
+    });
+    const html = await res.text();
+    const h = Object.fromEntries(res.headers.entries());
+    lines.push(`[SERVER]     ${h['server'] ?? 'not disclosed'}`);
+    lines.push(`[POWERED BY] ${h['x-powered-by'] ?? 'not disclosed'}`);
+    const gen = (html.match(/<meta name="generator" content="([^"]+)"/i) ?? [])[1];
+    lines.push(`[GENERATOR]  ${gen ?? 'not found'}`);
+    const cms: string[] = [];
+    if (html.includes('/wp-content/') || html.includes('/wp-includes/')) cms.push('WordPress');
+    if (html.includes('Joomla') || html.includes('/administrator/')) cms.push('Joomla');
+    if (html.includes('Drupal') || html.includes('/sites/default/files/')) cms.push('Drupal');
+    if (html.includes('cdn.shopify.com')) cms.push('Shopify');
+    if (html.includes('squarespace.com')) cms.push('Squarespace');
+    if (html.includes('_wixCssModules') || html.includes('wix.com')) cms.push('Wix');
+    if (html.includes('/ghost/') && html.includes('ghost')) cms.push('Ghost');
+    if (html.includes('Webflow')) cms.push('Webflow');
+    if (html.includes('__NEXT_DATA__')) cms.push('Next.js');
+    if (html.toLowerCase().includes('nuxtjs')) cms.push('Nuxt.js');
+    if (html.includes('react')) cms.push('React');
+    lines.push(`[CMS/STACK]  ${cms.length > 0 ? cms.join(', ') : 'not detected'}`);
+    lines.push(`[STATUS]     HTTP ${res.status}`);
+    lines.push(`[FINAL URL]  ${res.url}`);
+    const cookies = h['set-cookie'] ?? '';
+    if (cookies.includes('PHPSESSID')) lines.push(`[COOKIE]     PHP session detected`);
+    if (cookies.includes('JSESSIONID')) lines.push(`[COOKIE]     Java/JSP app detected`);
+    if (cookies.includes('ASP.NET')) lines.push(`[COOKIE]     ASP.NET detected`);
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  return lines;
+}
+
+async function fetchNiktoHeaders(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] NIKTO HEADERS — passive security header analysis`);
+  let url = target.trim();
+  if (!url.startsWith('http')) url = `https://${url}`;
+  lines.push(`[URL] ${url}`);
+  try {
+    const res = await fetch(url, {
+      method: 'HEAD',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SentinelBot/1.0)' },
+      redirect: 'follow',
+    });
+    const h = Object.fromEntries(res.headers.entries());
+    lines.push(`[STATUS] HTTP ${res.status}`);
+    lines.push(`── SECURITY HEADERS ──────────────────────────────────`);
+    const check = (name: string, label: string) => {
+      const val = h[name.toLowerCase()];
+      if (val) { lines.push(`[✓ PRESENT] ${label}`); lines.push(`            ${val.slice(0, 120)}`); }
+      else        lines.push(`[✗ MISSING] ${label}`);
+    };
+    check('Strict-Transport-Security',   'HSTS');
+    check('Content-Security-Policy',     'Content-Security-Policy');
+    check('X-Frame-Options',             'X-Frame-Options (clickjacking)');
+    check('X-Content-Type-Options',      'X-Content-Type-Options (MIME sniff)');
+    check('Referrer-Policy',             'Referrer-Policy');
+    check('Permissions-Policy',          'Permissions-Policy');
+    check('Cross-Origin-Opener-Policy',  'COOP');
+    lines.push(`── SERVER INFO ───────────────────────────────────────`);
+    lines.push(`[SERVER]       ${h['server'] ?? 'not disclosed'}`);
+    lines.push(`[POWERED BY]   ${h['x-powered-by'] ?? 'not disclosed'}`);
+    lines.push(`[CONTENT TYPE] ${h['content-type'] ?? 'n/a'}`);
+    const critical = ['strict-transport-security','content-security-policy','x-frame-options','x-content-type-options','referrer-policy'];
+    const present = critical.filter(k => h[k]).length;
+    lines.push(`[SCORE] ${present}/${critical.length} critical security headers present`);
+    lines.push(present === critical.length ? `[GRADE] A — all critical headers present`
+      : present >= 3 ? `[GRADE] C — some headers missing, moderate risk`
+      : `[GRADE] F — significant security headers absent`);
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  return lines;
 }
 
 // Guest run tracking — IP-based, 4 runs per 24 h, in-memory
