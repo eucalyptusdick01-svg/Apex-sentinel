@@ -16,19 +16,32 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function initStripe() {
+  const databaseUrl = process.env["DATABASE_URL"];
+  if (!databaseUrl) {
+    logger.warn("Stripe init skipped — DATABASE_URL not set");
+    return;
+  }
+
+  // Step 1: Run DB migrations — only needs the database URL, always attempt this.
   try {
     const { runMigrations } = await import("stripe-replit-sync");
-    const { getStripeSync } = await import("./stripeClient");
-    const databaseUrl = process.env["DATABASE_URL"];
-    if (!databaseUrl) throw new Error("DATABASE_URL required");
     await runMigrations({ databaseUrl });
+    logger.info("Stripe DB migrations complete");
+  } catch (err: unknown) {
+    logger.error({ err }, "Stripe DB migration failed — stripe.* tables may be missing");
+    return;
+  }
+
+  // Step 2: Connect to Stripe API — needs credentials, may skip gracefully.
+  try {
+    const { getStripeSync } = await import("./stripeClient");
     const stripeSync = await getStripeSync();
     const webhookBaseUrl = `https://${process.env["REPLIT_DOMAINS"]?.split(",")[0]}`;
     await stripeSync.findOrCreateManagedWebhook(`${webhookBaseUrl}/api/stripe/webhook`);
     stripeSync.syncBackfill().catch((err: unknown) => logger.error({ err }, "Stripe backfill error"));
     logger.info("Stripe initialized");
   } catch (err: unknown) {
-    logger.warn({ err }, "Stripe init skipped — integration not connected yet");
+    logger.warn({ err }, "Stripe sync skipped — integration not connected yet");
   }
 }
 
