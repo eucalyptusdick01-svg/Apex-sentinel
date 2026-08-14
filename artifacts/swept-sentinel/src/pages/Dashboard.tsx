@@ -81,6 +81,12 @@ export default function Dashboard() {
                   </button>
                 )}
                 <button
+                  onClick={() => navigate("/guide")}
+                  className="text-primary/60 hover:text-primary tracking-widest border border-primary/20 px-2 py-1 hover:border-primary/50 transition-colors hidden sm:inline-flex"
+                >
+                  [GUIDE]
+                </button>
+                <button
                   onClick={() => setSuggestionOpen(true)}
                   className="text-primary/60 hover:text-primary tracking-widest border border-primary/20 px-2 py-1 hover:border-primary/50 transition-colors"
                 >
