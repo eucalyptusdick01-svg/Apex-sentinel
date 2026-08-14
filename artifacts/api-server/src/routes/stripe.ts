@@ -102,6 +102,18 @@ router.post('/stripe/portal', requireAuth, async (req: any, res) => {
 
 router.get('/stripe/subscription', requireAuth, async (req: any, res) => {
   try {
+    // Check gift access first
+    const { pool } = await import('@workspace/db');
+    const giftResult = await pool.query(
+      'SELECT gift_expires_at FROM users WHERE id = $1',
+      [req.session.userId as string]
+    );
+    const giftExpiresAt: Date | null = giftResult.rows[0]?.gift_expires_at ?? null;
+    if (giftExpiresAt && new Date(giftExpiresAt) > new Date()) {
+      res.json({ subscription: null, plan: 'pro', giftExpiresAt });
+      return;
+    }
+
     const userInfo = await stripeStorage.getUserStripeInfo(req.session.userId as string);
     if (!userInfo?.stripe_subscription_id) {
       res.json({ subscription: null, plan: 'free' }); return;

@@ -15,6 +15,9 @@ import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import Modules from "@/pages/Modules";
 import Guide from "@/pages/Guide";
+import Gift from "@/pages/Gift";
+import GiftSuccess from "@/pages/GiftSuccess";
+import Redeem from "@/pages/Redeem";
 import { useEffect } from "react";
 import { ProtectedRoute, ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 
@@ -43,6 +46,9 @@ function Router() {
       </Route>
       <Route path="/modules" component={Modules} />
       <Route path="/guide" component={Guide} />
+      <Route path="/gift" component={Gift} />
+      <Route path="/gift/success" component={GiftSuccess} />
+      <Route path="/redeem/:code" component={Redeem} />
       <Route path="/privacy" component={Privacy} />
       <Route path="/terms" component={Terms} />
       <Route path="/" component={Landing} />

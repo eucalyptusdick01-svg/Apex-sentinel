@@ -27,7 +27,7 @@ function formatAmount(cents: number, currency: string) {
 }
 
 const FEATURES = [
-  "All 173 real OSINT modules",
+  "All 238 real OSINT modules",
   "Unlimited module runs",
   "VirusTotal, AbuseIPDB & OTX threat intel",
   "Subdomain scan, cert history & Shodan probe",
@@ -110,7 +110,7 @@ export default function Pricing() {
           </h1>
           <p className="text-xs text-primary/50 max-w-md mx-auto leading-relaxed">
             Unlock all{" "}
-            <span className="text-primary font-bold">173 real-data modules</span>{" "}
+            <span className="text-primary font-bold">238 real-data modules</span>{" "}
             with live threat intelligence, full recon suite, and cryptographic tools.
             Cancel anytime.
           </p>
@@ -204,6 +204,24 @@ export default function Pricing() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Gift section */}
+        {plansReady && (
+          <div className="border border-primary/20 p-5 mb-6 flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex-1">
+              <div className="text-[10px] text-primary/40 tracking-[0.25em] mb-1">🎁 GIVE AS A GIFT</div>
+              <p className="text-xs text-primary/60 leading-relaxed">
+                Buy a week or month of Pro access for a friend or colleague. They get a link to activate whenever they're ready.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/gift")}
+              className="shrink-0 border border-primary/40 text-primary/70 hover:border-primary hover:text-primary px-5 py-2.5 text-xs tracking-widest transition-colors"
+            >
+              [ GIFT ACCESS ]
+            </button>
           </div>
         )}
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuthLogin, getAuthMeQueryKey } from "@workspace/api-client-react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 
@@ -8,8 +8,11 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [, navigate] = useLocation();
+  const search = useSearch();
   const queryClient = useQueryClient();
   const login = useAuthLogin();
+
+  const redirectTo = new URLSearchParams(search).get("redirect") ?? "/dashboard";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,7 +21,7 @@ export default function Login() {
       {
         onSuccess: (user) => {
           queryClient.setQueryData(getAuthMeQueryKey(), user);
-          navigate("/dashboard");
+          navigate(redirectTo);
         },
       },
     );

@@ -47,6 +47,20 @@ async function initStripe() {
 
 await initStripe();
 
+// Ensure gift_codes table and gift_expires_at column exist
+try {
+  const { ensureGiftTable } = await import("./routes/gift");
+  await ensureGiftTable();
+  // Add gift_expires_at to users if missing
+  const { pool } = await import("@workspace/db");
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS gift_expires_at TIMESTAMP;
+  `);
+  logger.info("Gift tables ready");
+} catch (err: unknown) {
+  logger.error({ err }, "Gift table setup failed");
+}
+
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");

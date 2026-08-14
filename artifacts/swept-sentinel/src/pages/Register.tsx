@@ -75,7 +75,10 @@ export default function Register() {
       {
         onSuccess: (user) => {
           queryClient.setQueryData(getAuthMeQueryKey(), user);
-          if (selectedPriceId) {
+          const redirectTo = new URLSearchParams(search).get("redirect");
+          if (redirectTo) {
+            navigate(redirectTo);
+          } else if (selectedPriceId) {
             // Redirect to checkout for the selected plan
             fetch(`${BASE}/api/stripe/checkout`, {
               method: "POST",
