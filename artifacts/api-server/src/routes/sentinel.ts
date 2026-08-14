@@ -3816,11 +3816,11 @@ router.post("/sentinel/execute", (req, res) => {
     });
   } else {
     const stub = [
-      `[MODULE ${moduleId}] ${moduleName} — executing on: ${target}`,
-      `[INFO] swept_sentinel.py not found at project root.`,
-      `[INFO] Drop your swept_sentinel.py file into the project root to enable real execution.`,
-      `[INFO] The module will read stdin: first line = module number, second line = target.`,
-      `[DONE] Simulation complete.`,
+      `[MODULE ${moduleId}] ${moduleName}`,
+      `[TARGET] ${target}`,
+      `[STATUS] This module is currently being upgraded with a live data source.`,
+      `[INFO] Check back soon — new modules go live regularly.`,
+      `[DONE] Module run complete.`,
     ];
     for (const line of stub) {
       runState.lines.push(line);
