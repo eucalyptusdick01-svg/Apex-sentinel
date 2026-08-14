@@ -1,0 +1,498 @@
+Absolutely. Since this is a **230+ module OSINT/security toolkit**, I’d organize the instructions so each module tells the user:
+
+1. **What it does**
+2. **What input it accepts**
+3. **How to use it**
+4. **What the result means**
+5. **Whether it should only be used on systems/data they’re authorized to investigate**
+
+A few modules in your list—especially **JWT FORGE, HASH CRACK, XSS/SQLi payloads, DIR BRUTE, PARAM FUZZ, COOKIE FORGE, HEADER INJECT, SSTI/XXE/PATH TRAVERSE, SQLMAP, EXPLOIT SEARCH, MEMORY DUMP, ROOTKIT CHECK, and similar active-security modules**—need to be documented as **authorized security testing/lab functionality**, rather than instructions for attacking third-party systems.
+
+Here is a practical user guide structure for the entire toolkit.
+
+## 001–030 — Core OSINT & Identity
+
+| #       | Module         | How to use                                                                                                                                     |
+| ------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **001** | IP TRACKER     | Enter an IP address. The tool returns available geolocation, ISP/organization, ASN and network information. Treat the location as approximate. |
+| **002** | DNS RESOLVE    | Enter a hostname/domain. Resolves it to available IP addresses.                                                                                |
+| **003** | PORT SCAN      | Enter an authorized IP/hostname and selected ports. Shows reachable services. Use only against systems you own or have permission to test.     |
+| **004** | ASN LOOKUP     | Enter an ASN or organization. Displays associated autonomous-system information and announced networks.                                        |
+| **005** | WHOIS QUERY    | Enter a domain/IP. Retrieves publicly available registration/network information.                                                              |
+| **006** | PHONE OSINT    | Enter a phone number in international format. Searches permitted/public sources for associated information.                                    |
+| **007** | EMAIL REP      | Enter an email address. Checks available reputation indicators and public references.                                                          |
+| **008** | PROXY CHECK    | Enter an IP address. Determines whether available intelligence identifies it as a proxy/VPN/Tor/hosting address.                               |
+| **009** | DB SEARCH      | Enter an authorized search term. Searches the application's configured/public datasets.                                                        |
+| **010** | GEOLOCATE      | Enter an IP or supported location identifier. Displays approximate geographic information.                                                     |
+| **011** | GITHUB LOOKUP  | Enter a GitHub username. Retrieves publicly visible profile/repository information.                                                            |
+| **012** | USERNAME CHECK | Enter a username. Checks supported public platforms for matching usernames.                                                                    |
+| **013** | NEWS SEARCH    | Enter keywords, names, domains or organizations. Searches configured news sources.                                                             |
+| **014** | PEOPLE SEARCH  | Enter permitted identifying information. Returns matches from supported public sources.                                                        |
+| **015** | IMAGE SEARCH   | Enter an image/search term or supported URL. Finds relevant public image results.                                                              |
+| **016** | SITE ENUM      | Enter a domain you control or are authorized to assess. Enumerates publicly discoverable site information.                                     |
+| **017** | SUBDOMAIN SCAN | Enter an authorized domain. Searches configured sources for discovered subdomains.                                                             |
+| **018** | DNS FULL       | Enter a domain. Retrieves supported DNS record types in one report.                                                                            |
+| **019** | PAGE LINKS     | Enter a webpage URL. Extracts links found on the page.                                                                                         |
+| **020** | SHARED HOST    | Enter an IP/domain. Identifies domains that appear to share hosting infrastructure where data is available.                                    |
+| **021** | ZONE TRANSFER  | Enter an authorized DNS server/domain. Tests whether an AXFR request is permitted.                                                             |
+| **022** | ZIP LOOKUP     | Enter a ZIP code. Returns geographic/demographic information available to the application.                                                     |
+| **023** | ADDRESS LOOKUP | Enter an address. Searches configured public/address datasets.                                                                                 |
+| **024** | AREA CODE      | Enter a telephone area code. Returns geographic information associated with it.                                                                |
+| **025** | BIZ DIRECTORY  | Enter a company/business name. Searches supported business directories.                                                                        |
+| **026** | ID GENERATOR   | Enter requested parameters. Generates **synthetic/test identifiers**, not real-world identities.                                               |
+| **027** | ISO 8583       | Select a message type/field configuration. Creates or parses ISO 8583 **test messages** for development/simulation.                            |
+| **028** | ID STUDIO      | Create synthetic test identity datasets for development/testing.                                                                               |
+| **029** | DL ENCODER     | Enter permitted test driver's-license data and encode it according to the application's supported test format.                                 |
+| **030** | CHECKSUM GEN   | Enter supported numeric data. Calculates the appropriate checksum.                                                                             |
+
+## 031–060 — Social, Developer & Web Intelligence
+
+**031 REDDIT USER** — Enter a Reddit username and retrieve publicly available profile information.
+
+**032 HN USER** — Enter a Hacker News username and retrieve public profile/activity information.
+
+**033 GRAVATAR** — Enter an email hash/address supported by the module to check associated Gravatar information.
+
+**034 GITLAB USER** — Enter a GitLab username and inspect publicly available profile/project information.
+
+**035 MASTODON** — Enter a Mastodon handle/instance and retrieve supported public profile information.
+
+**036 DEV.TO USER** — Enter a DEV Community username and retrieve public profile information.
+
+**037 DISCORD ID** — Enter a Discord identifier and process information supported by your application's public/authorized datasets.
+
+**038 PYPI LOOKUP** — Enter a PyPI username/package and retrieve package metadata.
+
+**039 NPM USER** — Enter an npm username/package and retrieve public package information.
+
+**040 DOCKER HUB** — Enter a Docker Hub username/repository and inspect public repository metadata.
+
+**041 KEYBASE** — Enter a supported username and retrieve publicly available Keybase information.
+
+**042 STACKOVERFLOW** — Enter a Stack Overflow username/user ID and retrieve public profile/activity information.
+
+**043 TWITTER/X** — Enter a public username and retrieve information available through configured sources/APIs.
+
+**044 LINKEDIN** — Search publicly available professional information. Avoid collecting information that isn't legitimately available to the user.
+
+**045 INSTAGRAM** — Enter a public username and retrieve supported public profile information.
+
+**046 TIKTOK** — Enter a public username and retrieve supported public information.
+
+**047 TWITCH** — Enter a Twitch username and retrieve public channel/profile information.
+
+**048 YOUTUBE** — Enter a channel/username/video identifier and retrieve public metadata.
+
+**049 TELEGRAM ID** — Process supported public Telegram identifiers.
+
+**050 SNAPCHAT** — Search supported public information for a Snapchat username.
+
+**051 CORS CHECK** — Enter an authorized website and inspect its CORS configuration.
+
+**052 CSP ANALYZE** — Enter a URL or CSP header and analyze its Content-Security-Policy directives.
+
+**053 STEAM ID** — Enter a Steam identifier and retrieve supported public profile information.
+
+**054 REST PROBE** — Test REST endpoints belonging to systems you own or are authorized to assess.
+
+**055 DNSSEC CHECK** — Enter a domain and determine whether DNSSEC-related records/configuration are present.
+
+**056 CAA RECORD** — Enter a domain and inspect Certificate Authority Authorization records.
+
+**057 SPF CHECK** — Enter a domain and inspect its SPF configuration.
+
+**058 DKIM CHECK** — Enter a domain/selector and inspect available DKIM records.
+
+**059 MX DEEP DIVE** — Enter a domain and analyze its MX records/mail infrastructure.
+
+**060 TRUECALLER** — Use supported, permitted lookup functionality to check available phone-number reputation information.
+
+## 061–100 — DNS, Web & Infrastructure
+
+**061 NS LOOKUP** — Domain → nameservers.
+
+**062 SOA RECORD** — Domain → Start of Authority record.
+
+**063 TXT RECORDS** — Domain → TXT records.
+
+**064 PTR LOOKUP** — IP → reverse DNS hostname.
+
+**065 REDIRECT CHAIN** — URL → sequence of HTTP redirects.
+
+**066 COOKIE AUDIT** — Authorized website → cookie attributes such as Secure, HttpOnly and SameSite.
+
+**067 HEADER GRADE** — URL → evaluates HTTP security headers.
+
+**068 HSTS CHECK** — Domain → checks HSTS configuration.
+
+**069 HTTP METHODS** — Authorized server → identifies advertised HTTP methods.
+
+**070 HTTP2 CHECK** — URL → determines HTTP/2 support.
+
+**071 VIN CHECK** — Enter a VIN and retrieve supported vehicle information. Don't use it to impersonate an owner.
+
+**072 CLICKJACK TEST** — Authorized website → checks whether framing protections are configured.
+
+**073 OPEN REDIRECT** — Authorized application → test whether user-controlled redirect parameters behave safely.
+
+**074 CORS WILDCARD** — Authorized website → detects overly broad CORS configurations.
+
+**075 CONTENT SNIFF** — URL → checks content-type/content-sniffing behavior.
+
+**076 XSS HEADERS** — URL → evaluates relevant browser/security headers.
+
+**077 BREACH CHECK** — Use against authorized assets to identify applicable compression-related security concerns.
+
+**078 HIBP DOMAIN** — Authorized domain → checks supported breach-domain information.
+
+**079 PHISH CHECK** — URL/domain → evaluates available phishing indicators.
+
+**080 MALWARE URL** — URL → checks configured threat-intelligence sources.
+
+**081 PASTE SEARCH** — Search permitted public paste/index sources.
+
+**082 DOMAIN AGE** — Domain → registration/age information where available.
+
+**083 BGP PREFIXES** — ASN/IP → announced BGP prefixes.
+
+**084 HONEYPOT CHECK** — IP → checks available honeypot/reputation intelligence.
+
+**085 BLOCKLIST CHECK** — IP/domain → checks configured blocklists.
+
+**086 EMAIL VALIDATE** — Email → syntax/domain/mail configuration validation.
+
+**087 IPINFO FULL** — IP → comprehensive available IP/network information.
+
+**088 ABUSE IPDB** — IP → reputation/abuse reports where your API integration permits.
+
+**089 OPEN RESOLVER** — Authorized DNS server → checks resolver behavior.
+
+**090 TRACEROUTE SIM** — Produces a simulated/training traceroute rather than claiming real network observations.
+
+**091 SATELLITE** — Uses supported satellite/geospatial data sources.
+
+**092 SSL CERT INFO** — Domain → certificate information.
+
+**093 WAYBACK CHECK** — URL/domain → archived-page availability.
+
+**094 HTTP FINGERPRINT** — Authorized server → identifies observable HTTP characteristics.
+
+**095 REVERSE IP** — IP → domains associated with that IP according to available datasets.
+
+**096 TECH STACK** — URL → identifies observable technologies.
+
+**097 ADMIN FINDER** — Authorized website → identifies publicly exposed administrative paths; don't use it to access restricted areas.
+
+**098 ROBOTS SCAN** — Domain → retrieves/analyzes robots.txt.
+
+**099 API PROBE** — Authorized API → checks documented/approved endpoints.
+
+**100 CERT HISTORY** — Domain → historical certificate information.
+
+## 101–130 — Encoding & Security Testing
+
+**101 ENTROPY CALC** — Enter text/data → calculates entropy.
+
+**102 STRING EXTRACT** — Enter text/file → extracts strings.
+
+**103 FILE IDENT** — Upload/enter a file → identifies file type using permitted signatures.
+
+**104 BASE64 CODER** — Encode/decode Base64.
+
+**105 HEX CODER** — Encode/decode hexadecimal.
+
+**106 URL CODER** — URL encode/decode.
+
+**107 HTML CODER** — HTML encode/decode.
+
+**108 ROT13** — Apply/remove ROT13.
+
+**109 CAESAR CIPHER** — Enter text and shift value → encode/decode.
+
+**110 VIGENERE** — Enter test text and key → encode/decode.
+
+**111 MORSE CODE** — Convert text ↔ Morse.
+
+**112 JWT DECODE** — Paste a JWT → inspect header/payload without treating it as proof of authenticity.
+
+**113 JWT FORGE** — **Authorized development/testing only.** Use exclusively with locally generated test keys/tokens to test an application's JWT validation.
+
+**114 HASH CRACK** — Use against hashes you own or have explicit permission to audit. Prefer controlled test datasets.
+
+**115 WORDLIST GEN** — Generate synthetic test wordlists for authorized password/security testing.
+
+**116 XSS PAYLOADS** — Use only in an authorized lab/application. The module should ideally provide harmless test payloads and clearly label them.
+
+**117 SQLI PAYLOADS** — Authorized application testing only.
+
+**118 BANNER GRAB** — Authorized host → retrieve service banners.
+
+**119 FTP PROBE** — Authorized FTP server → inspect supported service information.
+
+**120 SMTP PROBE** — Authorized mail server → inspect supported SMTP behavior.
+
+**121 SSH FINGERPRINT** — Authorized SSH server → obtain service/host-key fingerprint information.
+
+**122 TELNET PROBE** — Authorized server → inspect service availability/banner.
+
+**123 DIR BRUTE** — Authorized web application only. Tests for discoverable paths using an approved wordlist.
+
+**124 PARAM FUZZ** — Authorized application only. Tests documented/test parameters.
+
+**125 COOKIE FORGE** — Test environment only. Generates synthetic cookies for application testing.
+
+**126 HEADER INJECT** — Test environment/authorized target only. Used to test application handling of HTTP headers.
+
+**127 SSTI PROBE** — Authorized application only.
+
+**128 XXE PROBE** — Authorized application only.
+
+**129 PATH TRAVERSE** — Authorized application/lab only.
+
+**130 OPEN PORTS** — Authorized IP/host → displays reachable/open ports based on the scanner's results.
+
+## 131–160 — Network Security & Threat Intelligence
+
+**131 SQL MAP** — Authorized applications/labs only. Use it as a controlled SQL-injection assessment component.
+
+**132 LDAP ENUM** — Authorized LDAP environment only.
+
+**133 RDP PROBE** — Authorized RDP host only.
+
+**134 FTP ENUM** — Authorized FTP environment only.
+
+**135 SNMP PROBE** — Authorized SNMP infrastructure only.
+
+**136 NTP QUERY** — Query permitted NTP servers and inspect response information.
+
+**137 DNS ZONE AXF** — Authorized DNS infrastructure only; test AXFR behavior.
+
+**138 DHCP PROBE** — Use only on networks you administer.
+
+**139 ARP SCAN** — Use only on networks you own/administer.
+
+**140 ICMP PROBE** — Authorized network diagnostics.
+
+**141 OS FINGERPRINT** — Authorized systems only; infer OS characteristics from network responses.
+
+**142 SERVICE VER** — Authorized hosts only; identify service versions.
+
+**143 VULN SCAN** — Scan systems you own or have authorization to assess.
+
+**144 EXPLOIT SEARCH** — Search vulnerability databases for publicly documented exploits/references. Keep the module informational.
+
+**145 ZERO DAY REF** — Research/reference interface for vulnerability intelligence.
+
+**146 CVE DETAILS** — Enter CVE ID → display vulnerability details.
+
+**147 NVD SEARCH** — Search the NVD vulnerability database.
+
+**148 MITRE ATT&CK** — Search ATT&CK techniques/groups/software.
+
+**149 THREAT MODEL** — Enter an application/system architecture and produce a defensive threat-modeling view.
+
+**150 RED TEAM REPORT** — Turn authorized assessment findings into a structured report.
+
+**151 CVE LOOKUP** — CVE identifier → vulnerability information.
+
+**152 MAC LOOKUP** — MAC/OUI → manufacturer information.
+
+**153 SHODAN PROBE** — Search/query permitted Shodan data rather than actively probing systems.
+
+**154 THREAT INTEL** — Search configured threat-intelligence sources.
+
+**155 RIPE STAT** — IP/ASN → RIPE network intelligence.
+
+**156 DUCK INTEL** — Search the configured DuckDuckGo/public intelligence sources.
+
+**157 AES CIPHER** — Encrypt/decrypt data using a supplied test key.
+
+**158 RSA KEYGEN** — Generate RSA key pairs for legitimate cryptographic use/testing.
+
+**159 PASSPHRASE GEN** — Generate random passphrases.
+
+**160 HMAC CALC** — Calculate HMAC for supplied data/key.
+
+## 161–190 — Crypto, Email, Files & Media
+
+**161 HASH COMPARE** — Compare two hashes/values.
+
+**162 CIDR CALC** — Enter CIDR → network, broadcast, usable range, mask, etc.
+
+**163 IP CONVERT** — Convert IP representations.
+
+**164 SUBNET CALC** — Calculate subnet information.
+
+**165 PORT REFERENCE** — Enter a port → common service/reference information.
+
+**166 HTTP STATUS** — Enter status code → description/reference.
+
+**167 EMAIL HEADER** — Paste an email header → parse routing/authentication information.
+
+**168 USER AGENT** — Paste a user-agent string → identify browser/device characteristics where possible.
+
+**169 IOC EXTRACT** — Paste threat-intelligence text/logs → extract IPs, domains, hashes, URLs and other indicators.
+
+**170 TYPOSQUAT** — Enter a domain → generate/check likely lookalike domains for defensive brand monitoring.
+
+**171 DOMAIN GEN** — Generate domain-name candidates for testing/project development.
+
+**172 WEB SCRAPER** — Scrape publicly accessible pages where permitted by the site and applicable rules.
+
+**173 KEY STRENGTH** — Enter a password/passphrase → estimate strength locally.
+
+**174 CIPHER SUITE** — Reference available cryptographic cipher suites.
+
+**175 TLS ANALYZER** — Authorized domain → inspect TLS configuration.
+
+**176 DANE CHECK** — Domain → check TLSA/DANE records.
+
+**177 SMTP TLS** — Mail server → inspect supported TLS configuration.
+
+**178 MAIL SECURITY** — Domain → summarize SPF/DKIM/DMARC/TLS-related security.
+
+**179 HIBP EMAIL** — Email → check supported breach information.
+
+**180 LEAK CHECK** — Search configured breach/leak intelligence sources.
+
+**181 BREACH INTEL** — Search breach intelligence available to the application.
+
+**182 PASTE INTEL** — Search supported paste intelligence.
+
+**183 DARK WEB INTEL** — Use only lawful threat-intelligence sources and datasets. Do not facilitate purchasing, accessing, or distributing illicit material.
+
+**184 FCC CALLSIGN** — Callsign → available FCC information.
+
+**185 HAM LOOKUP** — Amateur-radio callsign lookup.
+
+**186 DMR LOOKUP** — Digital Mobile Radio identifier lookup.
+
+**187 STEG DETECT** — Upload an image/file → inspect for indicators of steganographic content.
+
+**188 METADATA STRIP** — Upload a file → remove supported metadata.
+
+**189 IMAGE EXIF** — Upload image → display EXIF metadata.
+
+**190 PDF METADATA** — Upload PDF → display metadata.
+
+## 191–233 — Forensics, Automation & Utilities
+
+**191 OFFICE METADATA** — Upload an Office document → display available metadata.
+
+**192 AUDIO METADATA** — Upload audio → display metadata.
+
+**193 VIDEO METADATA** — Upload video → display metadata.
+
+**194 FILE TIMELINE** — Analyze filesystem timestamps/metadata to construct a timeline.
+
+**195 LOG PARSE** — Upload/paste an authorized log → parse events into structured records.
+
+**196 SIEM QUERY** — Query connected SIEM data using the application's supported syntax.
+
+**197 YARA SCAN** — Scan files against authorized YARA rules.
+
+**198 MEMORY DUMP** — Analyze memory dumps obtained from systems you own/administer.
+
+**199 PROC INSPECT** — Inspect processes on your own/local test system.
+
+**200 ROOTKIT CHECK** — Run defensive checks against your own system.
+
+**201 BGP ROUTE** — IP/prefix → routing information.
+
+**202 REGEX TEST** — Enter regex + test string → display matches/groups.
+
+**203 CRON PARSER** — Enter a cron expression → display its schedule.
+
+**204 TZ CONVERT** — Convert a date/time between time zones.
+
+**205 RAND DATA** — Generate synthetic random test data.
+
+**206 PASS AUDIT** — Audit password strength against authorized test passwords.
+
+**207 CDN ORIGIN** — Analyze public CDN-related information; don't attempt to bypass CDN protections.
+
+**208 TOR CHECK** — Determine whether an IP appears associated with Tor based on available intelligence.
+
+**209 URL SCAN** — Scan/analyze a URL using configured reputation and security services.
+
+**210 ARCHIVE DEPTH** — Search available web archives at different historical depths.
+
+**211 NPM AUDIT** — Analyze npm packages for known dependency vulnerabilities.
+
+**212 TOKEN COUNT** — Count tokens using the application's selected tokenizer.
+
+**213 EVIDENCE HASH** — Calculate cryptographic hashes for evidence integrity.
+
+**214 QR ENCODE** — Convert text/data into a QR code.
+
+**215 CODE STATS** — Analyze source code for lines, files, languages and related statistics.
+
+**216 JSON FORMAT** — Validate/format JSON.
+
+**217 XML PARSE** — Parse and inspect XML.
+
+**218 YAML VALID** — Validate YAML.
+
+**219 BIN CONVERT** — Convert binary representations.
+
+**220 DATE CALC** — Calculate date differences/offsets.
+
+**221 UNIT CONVERT** — Convert supported measurement units.
+
+**222 COLOR CONVERT** — Convert between color representations.
+
+**223 WORDCOUNT** — Count words/characters/lines.
+
+**224 TEXT DIFF** — Compare two text inputs and highlight differences.
+
+**225 NUM BASE** — Convert numbers between supported bases.
+
+**226 ASCII TABLE** — Reference ASCII values.
+
+**227 UNICODE INFO** — Enter a Unicode character/code point → display its properties.
+
+**228 CIPHER REF** — Cryptography/cipher reference database.
+
+**229 PORT SCANNER+** — Extended authorized port/service assessment.
+
+**230 DMARC ANALYZE** — Enter a domain → analyze DMARC policy and related records.
+
+**231 GREYNOISE INTEL** — Search available GreyNoise intelligence for an IP.
+
+**232 URLSCAN LOOKUP** — Search URLScan intelligence for a URL/domain/IP.
+
+**233 BGP** — Enter an IP, ASN or prefix → display available BGP routing information.
+
+### Recommended interface for every module
+
+For **SweptSentinel**, I'd make every module follow the same layout:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  [001] IP TRACKER                                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Target                                                     │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 8.8.8.8                                               │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│  [ RUN MODULE ]    [ CLEAR ]    [ EXPORT ]                  │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│ RESULTS                                                     │
+│                                                             │
+│ IP:             8.8.8.8                                    │
+│ Organization:   ...                                         │
+│ ASN:            ...                                         │
+│ Country:        ...                                         │
+│ Network:        ...                                         │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│ SOURCE / TIMESTAMP / CONFIDENCE                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+For the **active security-testing modules**, I'd additionally put a visible authorization warning and a **"Lab/Authorized Target"** mode in the UI. That lets SweptSentinel remain useful for penetration testing and security education without presenting dangerous modules as unrestricted attack tools.
+
+One other important change: your list actually contains **233 entries**, not 230. So if you're advertising SweptSentinel as having **230 modules**, you should either update the marketing to **233 modules** or decide which three entries are outside the official product count.

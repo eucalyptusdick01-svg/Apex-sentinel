@@ -122,6 +122,9 @@ export default function Modules() {
           SWEPT-SENTINEL
         </button>
         <div className="flex gap-4 text-xs tracking-widest">
+          <button onClick={() => navigate("/guide")} className="text-primary/50 hover:text-primary transition-colors">
+            GUIDE
+          </button>
           <button onClick={() => navigate("/pricing")} className="text-primary/50 hover:text-primary transition-colors">
             PRICING
           </button>
