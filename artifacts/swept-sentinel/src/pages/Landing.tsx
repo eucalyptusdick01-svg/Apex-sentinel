@@ -94,7 +94,7 @@ export default function Landing() {
             onClick={() => navigate("/modules")}
             className="px-8 py-3 bg-primary text-background text-sm font-bold tracking-widest hover:bg-primary/90 transition-colors"
           >
-            BROWSE 230 MODULES →
+            BROWSE 238 MODULES →
           </button>
           <button
             onClick={() => navigate("/register")}
@@ -103,7 +103,13 @@ export default function Landing() {
             REGISTER FREE
           </button>
         </div>
-        <p className="text-[11px] text-primary/30 mt-4 tracking-wide">
+        <button
+          onClick={() => navigate("/guide")}
+          className="mt-4 text-xs text-primary/40 hover:text-primary transition-colors tracking-widest underline underline-offset-4"
+        >
+          📖 View instructions for every module →
+        </button>
+        <p className="text-[11px] text-primary/30 mt-2 tracking-wide">
           Browse freely · Register to run · $5.99/week for full access
         </p>
       </section>
