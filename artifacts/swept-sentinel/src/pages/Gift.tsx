@@ -23,7 +23,7 @@ export default function Gift() {
   const [weeklyPrice, setWeeklyPrice] = useState<Price | null>(null);
   const [monthlyPrice, setMonthlyPrice] = useState<Price | null>(null);
   const [selected, setSelected] = useState<"week" | "month">("month");
-  const [recipientEmail, setRecipientEmail] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,10 +45,6 @@ export default function Gift() {
 
   async function handleGift() {
     if (!activePrice) return;
-    if (!recipientEmail || !recipientEmail.includes("@")) {
-      setError("Enter a valid recipient email address.");
-      return;
-    }
     setError(null);
     setLoading(true);
     try {
@@ -57,8 +53,8 @@ export default function Gift() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           priceId: activePrice.id,
-          recipientEmail,
           interval: selected,
+          quantity,
         }),
       });
       const data = await res.json() as { url?: string; error?: string };
@@ -143,20 +139,35 @@ export default function Gift() {
           )}
         </div>
 
-        {/* Recipient email */}
+        {/* Quantity selector */}
         <div className="mb-6">
           <label className="text-[10px] tracking-[0.25em] text-primary/50 block mb-2">
-            RECIPIENT EMAIL ADDRESS
+            HOW MANY GIFTS?
           </label>
-          <input
-            type="email"
-            value={recipientEmail}
-            onChange={(e) => setRecipientEmail(e.target.value)}
-            placeholder="friend@example.com"
-            className="w-full bg-transparent border border-primary/30 focus:border-primary outline-none px-4 py-3 text-sm text-primary placeholder:text-primary/25 tracking-wide"
-          />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              className="border border-primary/30 hover:border-primary text-primary w-10 h-10 text-lg font-bold transition-colors"
+            >
+              −
+            </button>
+            <span className="text-primary font-bold text-2xl w-12 text-center tracking-widest">
+              {quantity}
+            </span>
+            <button
+              onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+              className="border border-primary/30 hover:border-primary text-primary w-10 h-10 text-lg font-bold transition-colors"
+            >
+              +
+            </button>
+            {activePrice && (
+              <span className="text-xs text-primary/40 ml-2">
+                = {fmt(activePrice.unit_amount * quantity, activePrice.currency)} total
+              </span>
+            )}
+          </div>
           <p className="text-[10px] text-primary/30 mt-2 tracking-wide">
-            We'll generate a gift link you share with them — no account needed to buy.
+            You'll get {quantity} separate redemption {quantity === 1 ? "link" : "links"} after checkout — share each one with a different person.
           </p>
         </div>
 
@@ -168,13 +179,13 @@ export default function Gift() {
           {loading
             ? "[REDIRECTING TO STRIPE...]"
             : activePrice
-            ? `[ GIFT ${selected === "week" ? "WEEKLY" : "MONTHLY"} ACCESS — ${activePrice ? fmt(activePrice.unit_amount, activePrice.currency) : ""} ]`
+            ? `[ BUY ${quantity} ${selected === "week" ? "WEEKLY" : "MONTHLY"} GIFT${quantity > 1 ? "S" : ""} — ${fmt(activePrice.unit_amount * quantity, activePrice.currency)} ]`
             : "[LOADING...]"}
         </button>
 
         <div className="border border-primary/10 p-4 text-[10px] text-primary/30 tracking-wide space-y-1.5">
           <div>▸ One-time payment — you are not charged again</div>
-          <div>▸ Recipient gets a link to activate at any time within 90 days</div>
+          <div>▸ Each recipient gets their own link to activate within 90 days</div>
           <div>▸ They can use an existing account or create a new one</div>
           <div>▸ Secured by Stripe · No refunds after redemption</div>
         </div>

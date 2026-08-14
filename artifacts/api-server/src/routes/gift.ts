@@ -25,37 +25,35 @@ export async function ensureGiftTable(): Promise<void> {
   `);
 }
 
-// POST /api/stripe/gift-checkout — create a Stripe Checkout for a gift (no auth required)
+// POST /api/stripe/gift-checkout — create a Stripe Checkout for one or more gifts (no auth required)
 router.post('/stripe/gift-checkout', async (req: any, res) => {
   try {
-    const { priceId, recipientEmail, interval } = req.body as {
+    const { priceId, interval, quantity = 1 } = req.body as {
       priceId: string;
-      recipientEmail: string;
       interval: string;
+      quantity?: number;
     };
 
     if (!priceId) { res.status(400).json({ error: 'priceId required' }); return; }
-    if (!recipientEmail || !recipientEmail.includes('@')) {
-      res.status(400).json({ error: 'Valid recipient email required' }); return;
-    }
     if (!['week', 'month'].includes(interval)) {
       res.status(400).json({ error: 'interval must be week or month' }); return;
     }
+    const qty = Math.max(1, Math.min(20, Number(quantity) || 1));
 
     const stripe = await getUncachableStripeClient();
     const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0] ?? req.get('host')}`;
 
-    // One-time payment for the gift
+    // One-time payment for N gifts
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: qty }],
       mode: 'payment',
       success_url: `${baseUrl}/gift/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/gift`,
       metadata: {
         gift: 'true',
         interval,
-        recipientEmail,
+        quantity: String(qty),
       },
     });
 
@@ -65,19 +63,19 @@ router.post('/stripe/gift-checkout', async (req: any, res) => {
   }
 });
 
-// POST /api/gift/confirm — called after successful gift checkout to generate the code
+// POST /api/gift/confirm — called after successful gift checkout to generate codes
 router.post('/gift/confirm', async (req: any, res) => {
   try {
     const { sessionId } = req.body as { sessionId: string };
     if (!sessionId) { res.status(400).json({ error: 'sessionId required' }); return; }
 
-    // Check if this session already has a code
+    // Return existing codes if already generated for this session
     const existing = await pool.query(
-      'SELECT code FROM gift_codes WHERE stripe_session_id = $1',
+      'SELECT code, interval FROM gift_codes WHERE stripe_session_id = $1 ORDER BY created_at',
       [sessionId]
     );
     if (existing.rows.length > 0) {
-      res.json({ code: existing.rows[0].code });
+      res.json({ codes: existing.rows.map((r: any) => r.code), interval: existing.rows[0].interval });
       return;
     }
 
@@ -92,24 +90,23 @@ router.post('/gift/confirm', async (req: any, res) => {
     }
 
     const interval = session.metadata.interval as string;
-    const recipientEmail = session.metadata.recipientEmail as string;
+    const quantity = Math.max(1, Math.min(20, Number(session.metadata.quantity) || 1));
     const gifterEmail = (session.customer_details?.email ?? null) as string | null;
-
-    // Gift is valid for the chosen interval from redemption date
-    const intervalMs = interval === 'week' ? 7 * 24 * 3600 * 1000 : 30 * 24 * 3600 * 1000;
-    // expires_at here is the max deadline to redeem (90 days), not the access period
     const expiresAt = new Date(Date.now() + 90 * 24 * 3600 * 1000);
 
-    // Generate a short, friendly code
-    const code = crypto.randomBytes(5).toString('hex').toUpperCase();
+    // Generate N unique codes
+    const codes: string[] = [];
+    for (let i = 0; i < quantity; i++) {
+      const code = crypto.randomBytes(5).toString('hex').toUpperCase();
+      await pool.query(
+        `INSERT INTO gift_codes (code, interval, stripe_session_id, gifter_email, expires_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [code, interval, sessionId, gifterEmail, expiresAt]
+      );
+      codes.push(code);
+    }
 
-    await pool.query(
-      `INSERT INTO gift_codes (code, interval, stripe_session_id, gifter_email, recipient_email, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [code, interval, sessionId, gifterEmail, recipientEmail || null, expiresAt]
-    );
-
-    res.json({ code, interval, recipientEmail });
+    res.json({ codes, interval });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
